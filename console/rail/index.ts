@@ -23,7 +23,8 @@ import { sidebarBrand } from './brand.ts';
 import { L } from '../strings.ts';
 import { createAvatarControl } from './avatar.ts';
 import { S } from './strings.ts';
-import { fold, prefersStill, steadiest } from '../base/motion.ts';
+import { fold, motionLevel, slideFrom, steadiest } from '../base/motion.ts';
+import { tween } from 'cortico-world-desktop-pet/web/motion-frames.js';
 
 const COLLAPSED_KEY = 'companion.sidebar.collapsed';
 const DEFAULT_NAME = 'bot';
@@ -154,7 +155,7 @@ export function createRail(deps: RailDeps): Rail {
     clearTimeout(departing); departing = undefined;
     const next = new Set(groups.flatMap((g) => [...g.items, ...(g.modules ?? [])]).flatMap((it) => it.pageId ? [it.pageId] : []));
     const leaving = entries.filter((entry) => entry.pageId && !next.has(entry.pageId) && !entry.item.hidden && entry.item.isConnected);
-    const still = prefersStill(doc.defaultView);
+    const still = motionLevel(doc.defaultView) === 'low';
     if (!leaving.length || still) { drawNav(groups); return; }
     for (const { item } of leaving) { item.classList.add('companion-depart'); move(item, false, DEPART_MS); }
     departing = setTimeout(() => { departing = undefined; drawNav(groups); }, DEPART_MS);
@@ -163,7 +164,7 @@ export function createRail(deps: RailDeps): Rail {
   const REORDER_MS = 240;
   const drawNav = (groups: readonly NavGroup[]): void => {
     const before = listedPages;
-    const still = prefersStill(doc.defaultView);
+    const still = motionLevel(doc.defaultView) === 'low';
     const was = new Map<string, number>();
     if (!still) for (const { item, pageId } of entries) {
       const rect = item.getBoundingClientRect();
@@ -216,13 +217,15 @@ export function createRail(deps: RailDeps): Rail {
     });
     if (!now.some(({ dy }) => Math.abs(dy) > .5)) return;
     const kept = new Set(steadiest(now.map(({ rank }) => rank)));
-    for (const { item, dy, rank } of now) {
-      if (Math.abs(dy) <= .5) continue;
-      const mover = !kept.has(rank);
-      if (mover) item.classList.add('companion-reorder');
-      const motion = item.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: REORDER_MS, easing: 'cubic-bezier(.32, .72, 0, 1)' });
-      if (mover) void motion.finished.finally(() => item.classList.remove('companion-reorder')).catch(() => {});
-    }
+    const moved = now.filter(({ dy }) => Math.abs(dy) > .5);
+    const motions = slideFrom(moved.map(({ item, dy }) => [item, 0, dy] as const), { duration: REORDER_MS, easing: 'cubic-bezier(.32, .72, 0, 1)', axis: 'y' });
+    moved.forEach(({ item, rank }, i) => {
+      const motion = motions[i];
+      if (!motion || kept.has(rank)) return;
+      // the entries that changed places pass over the rest
+      item.classList.add('companion-reorder');
+      void motion.finished.finally(() => item.classList.remove('companion-reorder')).catch(() => {});
+    });
   };
 
   const applyRoute = (): void => {
@@ -270,14 +273,14 @@ export function createRail(deps: RailDeps): Rail {
       const to = Math.max(0, Math.min(from, nav.scrollHeight - nav.clientHeight));
       for (const x of leaving) x.style.display = '';
       nav.scrollTop = from;
-      if (to < from && !prefersStill(win)) {
-        const start = performance.now();
+      // eased over the entries' fade; at low motion `tween` is at its end at once
+      if (to < from) {
+        const glide = tween(from, to, FADE_MS, { win });
         const step = (now: number): void => {
-          const k = Math.min(1, (now - start) / FADE_MS);
-          nav.scrollTop = from + (to - from) * (1 - (1 - k) ** 3);
-          if (k < 1) requestAnimationFrame(step);
+          nav.scrollTop = glide.at(now);
+          if (!glide.done(now)) requestAnimationFrame(step);
         };
-        requestAnimationFrame(step);
+        if (glide.done(performance.now())) nav.scrollTop = to; else requestAnimationFrame(step);
       } else nav.scrollTop = to;
     }
   };
@@ -475,7 +478,7 @@ export function createRail(deps: RailDeps): Rail {
    * would move it for the length of its fade.
    */
   const flip = (change: () => void): void => {
-    const motion = typeof foot.animate === 'function' && !prefersStill(win);
+    const motion = typeof foot.animate === 'function' && motionLevel(win) !== 'low';
     const moving = motion
       ? Array.from(foot.querySelectorAll<HTMLElement>('.rail-who, .rail-action, .companion-runstate')).filter((x) => !x.hidden)
       : [];
@@ -515,7 +518,7 @@ export function createRail(deps: RailDeps): Rail {
         x.animate([{ transform: `translate(${from[0]}px, ${from[1]}px)` }, { transform: `translate(${to[0]}px, ${to[1]}px)` }], options);
         return;
       }
-      if (dx || dy) x.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], options);
+      slideFrom([[x, dx, dy]], options);
     });
   };
 

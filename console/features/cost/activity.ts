@@ -6,9 +6,10 @@
 
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { LANGUAGE } from '../../base/language.ts';
-import { prefersStill } from '../../base/motion.ts';
+import { cssEasing, motionLevel } from '../../base/motion.ts';
 import { groundColor } from './chart.ts';
 import { S } from './strings.ts';
+import { cssMs } from 'cortico-world-desktop-pet/web/motion-frames.js';
 import type { UsageTip } from './tooltip.ts';
 import type { UsageDailyTokens } from './types.ts';
 
@@ -23,7 +24,7 @@ const MONTH_GAP = 3;
 /** 换范围时着色/褪色依次扫过各列，每列的延迟与整段扫过的上限（ms）。 */
 const SWEEP_STEP_MS = 18;
 const SWEEP_MAX_MS = 600;
-/** 单个格子着色/褪色的时长，与 cost.css 中 .ucell 的 opacity / filter 过渡一致。 */
+/** 单个格子着色/褪色的时长：读 cost.css 的 `--sweep-fade`（.ucell 的 opacity / filter 过渡），读不到时用这个。 */
 const SWEEP_FADE_MS = 240;
 
 export interface ActivityDeps {
@@ -132,7 +133,7 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
 
   // The spotlight, as on the usage chart: the grid fades as one layer (cost.css), and the pointed cell is a
   // copy on a layer of its own that grows and glows, so a move of the pointer repaints the copy alone.
-  const still = prefersStill(box.ownerDocument.defaultView) || typeof wrap.animate !== 'function';
+  const still = motionLevel(box.ownerDocument.defaultView) === 'low' || typeof wrap.animate !== 'function';
   const up: Keyframe = { opacity: 1, transform: 'scale(1.7)' };
   const down: Keyframe = { opacity: 0, transform: 'scale(1)' };
   let ground: string | undefined;
@@ -156,7 +157,7 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
     wrap.appendChild(el);
     lit = { cell, el };
     if (still) Object.assign(el.style, up);
-    else el.animate([down, up], { duration: 260, easing: 'cubic-bezier(.34, 1.56, .64, 1)', fill: 'forwards' });
+    else el.animate([down, up], { duration: 260, easing: cssEasing(box.ownerDocument.defaultView, '--motion-pop', 'cubic-bezier(.34, 1.56, .64, 1)'), fill: 'forwards' });
   };
 
   // The pointed cell comes from the pointer's position, a gap going to the nearer cell, so crossing a gap
@@ -194,5 +195,5 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
   // 延迟只给这一次切换；扫完后清掉，悬停的过渡照常立即开始。
   box.ownerDocument.defaultView?.setTimeout(() => {
     for (const { cell } of shifts) cell.style.transitionDelay = '';
-  }, longest + SWEEP_FADE_MS);
+  }, longest + cssMs(grid, '--sweep-fade', SWEEP_FADE_MS));
 }

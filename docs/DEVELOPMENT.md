@@ -71,6 +71,37 @@ Cortico 是内核,Coopanion 是用它做的一个产品。使用者看到的界�
   - **托管自己的环境。** 使用者要直接、频繁操作的界面，做成扩展自己的小应用：由 World 启动时拉起、停止时关闭,World 在应用和 Bot 之间转递事件和工具。这类扩展需要和使用者在同一台电脑上，发布时用 `os` 字段和 `local` 等标签写明。不要借用 Coopanion 的运行时(`CORTICO_NODE_EXE` 指向的 Electron)开窗口：它只供扩展安装使用，随时可能改。
     要在后台渲染(给形象包画封面、量包围盒)也一样：扩展自带渲染环境，Coopanion 不提供渲染接口;环境不在时把这一步当可选，跳过并提示。
 
+## 动画与动态效果（`packages/cortico-world-desktop-pet/web/motion-level.js`、`console/base/motion.ts`）
+
+设置窗口和桌宠页的界面动画分高、中、低三档，用户在「习惯 → 显示 → 动态效果」里选，存在桌宠 World 的 `window.motion`(默认 `system`,跟随系统的减少动态效果)。档位写在页面根元素的 `data-motion` 上，样式表按它写规则，脚本问 `motionLevel(win)`;不要再直接读 `prefers-reduced-motion`。
+
+| 档 | 留下 | 去掉 |
+|---|---|---|
+| 高 | 全部 | — |
+| 中 | 颜色、透明度、展开收起、面板出现、拖动让位 | 回弹和过冲、装饰性的小动作；列表换位改为淡入淡出 |
+| 低 | 颜色和透明度；表示「正在进行」的指示(转圈、进度条、思考点、等待图标、长按圆环) | 其余全部，连同过渡和动画的延迟 |
+
+新加或修改动画时：
+
+- **时长**用 `--motion-fast`(150ms,颜色、透明度、悬停)、`--motion-base`(200ms,展开、出现)、`--motion-slow`(280ms,滑块、大的布局变化);两套变量分别定义在 `console/styles.css` 和 `pet.css` 的根元素上。脚本要等一段动画放完时，把这段时长写成样式表变量，脚本用 `cssMs(el, '--名字', 后备值)` 读(`motion-frames.js`),不要在两边各写一遍数字。
+- **缓动**用变量：设置窗口 `--motion-out`(平稳减速)、`--motion-slide`(滑块、下划线)、`--motion-enter`、`--motion-pop`(回弹);桌宠 `--motion-pop`、`--motion-pop-soft`、`--motion-return`。会过冲的曲线一律用 `--motion-pop`/`--motion-pop-soft`:中档在根元素上把它们换成平稳曲线，不用逐条写覆盖。脚本动画要和 CSS 一样缓动时用 `cssEasing(win, '--motion-pop', 后备值)` 读。
+- **关键帧**先找现成的：`spin`、`rise-in`(`--rise` 定起点位移，桌宠还有 `--rise-scale`)、`bump`(`--bump` 定倍数)、`rail-icon-in`。只差参数的动作用这些参数，不另起一个名字。
+- **中档要去掉的**(装饰性的循环、悬停小动作、弹跳)加进 `styles.css`/`pet.css` 末尾的 `:where(:root:not([data-motion="high"]))` 规则里。
+- **低档**由全局规则把时长和延迟清零；要在低档继续动的指示，加进同一处的 `:where(:root[data-motion="low"])` 例外，写明 `animation-duration`、`animation-iteration-count`,有依次延迟的连延迟一起写，都带 `!important`。
+- **脚本动画**用现成的函数，档位由它们处理：
+  - 展开收起：`fold()`(设置窗口)、`growFrom()`(桌宠);
+  - 位置变化：`slideFrom()`(中档可选继续滑、直接到位或淡入)、`measureReflow()`;
+  - 出现与离开：`showHide()`(`packages/cortico-world-desktop-pet/web/show-hide.js`);
+  - 拖动排序：`dragItems()`(`packages/cortico-world-desktop-pet/web/drag.js`,设置窗口经 `console/base/drag.ts`);
+  - 逐帧补间：`tween()`、`progress()`、`approachShare()`、`typeOut()`(`motion-frames.js`),按经过的时间算，不按帧数。
+
+  其余直接写的 `Element.animate`、平滑滚动和逐帧代码，先问 `motionLevel(win)`:低档跳过，中档去掉过冲。
+- `shared/ui/` 也给 Core 自带的页面用，那些页面没有 `data-motion`:那里的规则同时写按档位的和按系统的两份(见 `shared/ui/modal.css`)。
+
+不归档位管的：Coo 的身体和形象包(在沙盒 frame 里，由 `roam` 管)、气泡逐字出现的快慢(`window.bubbleSpeed`)、帧率。高级模式里扩展的面板以 ESM 模块加载进设置窗口同一个页面：低档的全局规则也作用于它们，中档要去掉什么由面板自己按根元素的 `data-motion` 决定。
+
+验证：用 `pnpm run console:test` 打开真实的设置窗口，在「习惯」页切换三档(或 `POST /api/config` 写 `worlds.desktop-pet.window.motion`),设置窗口和桌宠页、装扮页各看一遍。
+
 ## 发布
 
 1. 改 `package.json` 里的 `version`;

@@ -6,6 +6,8 @@
  * (`POST /api/prefs`, as the dressing page saves it).
  */
 import { applyTheme } from './ui.js';
+import { motionLevel } from './motion-level.js';
+import { approachShare } from './motion-frames.js';
 
 const line = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 /** Decoration only: what a taskbar usually holds. */
@@ -20,8 +22,8 @@ const DOCK = [
 
 /** Radii of the light and of the lens that shows the grown dots, in pixels (pet.css sizes them the same). */
 const GLOW = 280, LENS = 150;
-/** How much of the way to the pointer the light moves each frame. */
-const EASE = .18;
+/** How fast the light closes on the pointer, per second: .18 of the way each frame at 60 frames a second, on any display. */
+const EASE_RATE = 12;
 
 /**
  * Lights the wall `wall` under the pointer: a soft light and a round lens of bigger dots in the body's color (setGlow) follow it
@@ -36,23 +38,27 @@ export function lightWall(wall, area = wall) {
   const glow = layer('wall-glow'), lens = layer('wall-lens'), grid = layer('wall-lens-grid');
   lens.append(grid);
   wall.prepend(glow, lens);
-  let x = 0, y = 0, tx = 0, ty = 0, lit = false, frame = 0;
+  let x = 0, y = 0, tx = 0, ty = 0, lit = false, frame = 0, last = 0;
   const place = () => {
     glow.style.transform = `translate3d(${x - GLOW}px, ${y - GLOW}px, 0)`;
     lens.style.transform = `translate3d(${x - LENS}px, ${y - LENS}px, 0)`;
     grid.style.transform = `translate3d(${LENS - x}px, ${LENS - y}px, 0)`;
   };
-  const step = () => {
-    x += (tx - x) * EASE; y += (ty - y) * EASE;
+  const step = (now) => {
+    const k = approachShare(EASE_RATE, (now - last) / 1000);
+    last = now;
+    x += (tx - x) * k; y += (ty - y) * k;
     if (Math.abs(tx - x) + Math.abs(ty - y) < .3) { x = tx; y = ty; frame = 0; } else frame = requestAnimationFrame(step);
     place();
   };
   area.addEventListener('pointermove', (e) => {
+    // the light that follows the pointer is decoration: full motion only
+    if (motionLevel(window) !== 'high') { if (lit) { lit = false; wall.classList.remove('wall-lit'); } return; }
     const r = wall.getBoundingClientRect();
     tx = e.clientX - r.left; ty = e.clientY - r.top;
     // coming in, the light starts where the pointer is instead of sliding over from where it left
     if (!lit) { x = tx; y = ty; place(); lit = true; wall.classList.add('wall-lit'); }
-    if (!frame) frame = requestAnimationFrame(step);
+    if (!frame) { last = performance.now(); frame = requestAnimationFrame(step); }
   });
   area.addEventListener('pointerleave', () => { lit = false; wall.classList.remove('wall-lit'); });
 }

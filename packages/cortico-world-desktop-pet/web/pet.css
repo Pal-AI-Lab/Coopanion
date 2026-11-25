@@ -1,4 +1,10 @@
 :root{
+  /* animation durations: colors and hovers, things appearing, larger moves */
+  --motion-fast:150ms; --motion-base:200ms; --motion-slow:280ms;
+  /* animation curves: a pop that overshoots, a softer one, and controls sliding back beside the body */
+  --motion-pop:cubic-bezier(.3,1.5,.5,1); --motion-pop-soft:cubic-bezier(.3,1.4,.5,1); --motion-return:cubic-bezier(.2,.7,.3,1);
+  /* the leaving animations pet-app.js and hints.js wait for before they hide the element */
+  --pop-out:160ms; --wheel-out:140ms; --slider-out:140ms; --return-time:260ms; --hint-out:120ms;
   --bg:#F3F2F6; --surface:#FFFFFF; --text:#1B1626; --muted:#6A6577; --line:#E2DFE8;
   --accent:#00A870;
   --skin-ink:#1B1626; --skin-eye:#00A870;
@@ -86,7 +92,7 @@ body.tab .floor{position:fixed; left:0; right:0; bottom:0; height:48px; backgrou
 .stage-mode{
   position:absolute; top:12px; left:12px; z-index:2; display:grid; place-items:center; width:32px; height:32px; padding:0;
   border-radius:50%; border:1px solid var(--line); background:var(--sheen), var(--glass); color:var(--text); cursor:pointer;
-  box-shadow:0 1px 2px var(--shadow), 0 4px 12px var(--shadow); transition:color .15s, border-color .15s, transform .15s;
+  box-shadow:0 1px 2px var(--shadow), 0 4px 12px var(--shadow); transition:color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast);
 }
 body.tab .stage-mode{position:fixed}
 .stage-mode:hover{color:var(--skin-eye); border-color:var(--skin-eye); transform:scale(1.06)}
@@ -94,8 +100,8 @@ body.tab .stage-mode{position:fixed}
 body.desk{background:transparent}
 body.desk .floor{display:none}
 /* --pet-opacity: the transparency on screen (pet-app.js stepFade), on the body only, never on a bubble or a control */
-.stage{position:fixed; inset:0; touch-action:none; opacity:var(--pet-opacity, 1); transition:opacity .2s ease}
-@media (prefers-reduced-motion: reduce){.stage{transition:none}}
+.stage{position:fixed; inset:0; touch-action:none; opacity:var(--pet-opacity, 1); transition:opacity var(--motion-base) ease}
+:where(:root[data-motion="low"]) {.stage{transition:none}}
 /* the body's sandboxed frame: transparent (a colour scheme unlike the frame's would give it a backdrop) and never under the pointer */
 .figure-layer{position:absolute; inset:0; pointer-events:none}
 /* the frame's window onto the stage: body-host cuts it down to the body's surroundings while the halo is on */
@@ -107,11 +113,11 @@ body.desk .floor{display:none}
 .bubble.status{
   display:flex; align-items:center; gap:6px;
   max-width:min(calc(220px * var(--bubble-size, 1)), calc(100vw - 20px)); padding:calc(6px * var(--bubble-size, 1)) calc(10px * var(--bubble-size, 1));
-  font-size:calc(12.5px * var(--bubble-font, 1)); line-height:1.4; pointer-events:none; user-select:none; transition:opacity .2s;
+  font-size:calc(12.5px * var(--bubble-font, 1)); line-height:1.4; pointer-events:none; user-select:none; transition:opacity var(--motion-base);
 }
 .status[hidden]{display:none}
 .status.fading{opacity:0}
-.bubble.status.pop{animation:status-in .24s cubic-bezier(.3,1.4,.5,1)}
+.bubble.status.pop{animation:rise-in var(--motion-base) var(--motion-pop-soft); --rise:3px}
 .status-text{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .status-icon{display:flex; flex:none; color:color-mix(in srgb, var(--skin-eye) 78%, var(--skin-ink))}
 .status-icon svg{width:calc(14px * var(--bubble-font, 1)); height:calc(14px * var(--bubble-font, 1)); overflow:visible}
@@ -134,8 +140,7 @@ body.desk .floor{display:none}
 .status .keycap{animation:status-type .9s ease-in-out infinite}
 .status[data-kind="wait"] svg{animation:status-wait 2.8s ease-in-out infinite}
 .status[data-kind="alarm"] svg{animation:status-alarm 1.8s ease-in-out infinite}
-.status[data-kind="work"] svg{animation:status-work 4s linear infinite}
-@keyframes status-in{from{transform:translateY(3px) scale(.92); opacity:0}}
+.status[data-kind="work"] svg{animation:spin 4s linear infinite}
 @keyframes status-think{0%,60%,100%{transform:none; opacity:.45} 30%{transform:translateY(-3px); opacity:1}}
 @keyframes status-read{0%,100%{transform:translateY(0); opacity:.5} 70%{transform:translateY(6px); opacity:1}}
 @keyframes status-browse{50%{transform:scaleY(.72) skewX(-8deg)}}
@@ -149,7 +154,7 @@ body.desk .floor{display:none}
 @keyframes status-type{40%,65%{transform:translateY(3px)}}
 @keyframes status-wait{0%,30%{transform:rotate(0)} 60%,100%{transform:rotate(180deg)}}
 @keyframes status-alarm{10%,30%{transform:rotate(-10deg)} 20%,40%{transform:rotate(10deg)} 50%,100%{transform:none}}
-@keyframes status-work{to{transform:rotate(360deg)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* bubbles; the min-width keeps an empty one (its line not typed yet) wide enough for the tail to sit on its bottom edge.
    --bubble-size scales the frame (widths, padding, corners, tail) and --bubble-font the text and the icons on its lines, both
@@ -161,7 +166,7 @@ body.desk .floor{display:none}
   border:2.5px solid var(--skin-ink); box-shadow:0 1px 3px var(--shadow), 0 8px 22px var(--shadow);
   font-size:calc(14.5px * var(--bubble-font, 1)); line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + calc(10px * var(--bubble-size, 1)));
-  opacity:var(--bubble-alpha); transition:opacity .2s ease;
+  opacity:var(--bubble-alpha); transition:opacity var(--motion-base) ease;
 }
 /* tail: an outline triangle whose base lies inside the border, so its sides join the border, and a
    surface triangle one line width inside it that opens the border between the sides. Neither is
@@ -182,7 +187,7 @@ body.desk .floor{display:none}
 .bubble.heard::before, .bubble.heard::after{display:none}
 /* what the person said, above Coo (pet-app.js lines): a settled one closes on a click, lit in the eye color on hover as the
    hover buttons are; older ones step back; a fading one lets the pointer through. Its text shows six rows at most. */
-.bubble.said{transition:opacity .4s ease, border-color .15s}
+.bubble.said{transition:opacity .4s ease, border-color var(--motion-fast)}
 .bubble.said.settled{cursor:pointer}
 .bubble.said.settled:hover{border-color:var(--skin-eye); opacity:var(--bubble-alpha)}
 .bubble.said.older{opacity:calc(.62 * var(--bubble-alpha))}
@@ -193,12 +198,12 @@ body.desk .floor{display:none}
 .said-mark svg{width:calc(15px * var(--bubble-font, 1)); height:calc(15px * var(--bubble-font, 1))}
 .b-hint .said-mark{vertical-align:-3px; margin-right:4px}
 /* a line closes on a click, lit in the eye color on hover as the person's own lines are */
-.bubble.say{cursor:pointer; transition:opacity .4s ease, border-color .15s}
+.bubble.say{cursor:pointer; transition:opacity .4s ease, border-color var(--motion-fast)}
 .bubble.say:hover{border-color:var(--skin-eye)}
 .bubble.say:hover::before{background:var(--skin-eye)}
 .bubble.say.fading{opacity:0; pointer-events:none}
 .bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px))}
-.bubble.pop{animation:bubble-in .26s cubic-bezier(.3,1.5,.5,1)}
+.bubble.pop{animation:bubble-in var(--motion-slow) var(--motion-pop)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
 .b-text{margin:0; min-height:1.55em; white-space:pre-wrap; text-wrap:pretty; overflow-wrap:break-word}
 .b-text .interim{color:var(--muted)}
@@ -212,8 +217,11 @@ body.desk .floor{display:none}
 .b-cancel:hover{color:var(--text); border-color:var(--text)}
 .caret[hidden], .b-cancel[hidden]{display:none}
 .b-opts{display:flex; flex-direction:column; gap:6px; margin:10px 0 2px}
-.b-opt, .b-own{animation:opt-in .24s cubic-bezier(.3,1.4,.5,1) both; transition:border-color .15s, opacity .2s}
-@keyframes opt-in{from{transform:translateY(6px) scale(.92); opacity:0}}
+.b-opt, .b-own{animation:rise-in var(--motion-base) var(--motion-pop-soft) both; transition:border-color var(--motion-fast), opacity var(--motion-base)}
+/* rising into place: `--rise` and `--rise-scale` set the start (6px below, at 92%) */
+@property --rise{syntax:'<length>'; inherits:false; initial-value:6px}
+@property --rise-scale{syntax:'<number>'; inherits:false; initial-value:.92}
+@keyframes rise-in{from{transform:translateY(var(--rise)) scale(var(--rise-scale)); opacity:0}}
 .b-opt{
   display:flex; align-items:center; gap:8px; width:100%; text-align:left; font:inherit; font-size:calc(14px * var(--bubble-font, 1));
   padding:6px 10px; border-radius:11px; border:1.5px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer;
@@ -247,12 +255,12 @@ body.desk .floor{display:none}
 .b-close{
   display:grid; place-items:center; width:26px; height:26px; padding:0; border-radius:50%; cursor:pointer;
   background:var(--sheen), var(--glass); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 1px 2px var(--shadow), 0 4px 12px var(--shadow);
-  transition:border-color .15s, color .15s, scale .15s ease, box-shadow .15s;
+  transition:border-color var(--motion-fast), color var(--motion-fast), scale var(--motion-fast) ease, box-shadow var(--motion-fast);
 }
 .b-close:hover{color:var(--skin-eye); border-color:var(--skin-eye); scale:1.1; box-shadow:var(--halo), 0 1px 2px var(--shadow), 0 4px 12px var(--shadow)}
 .b-close svg{display:block; width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2px; stroke-linecap:round}
 .b-track{position:relative; width:6px; border-radius:3px; background:color-mix(in srgb, var(--line) 60%, transparent); cursor:pointer; touch-action:none}
-.b-thumb{position:absolute; left:0; width:6px; min-height:16px; border-radius:3px; background:var(--muted); opacity:.75; transition:opacity .15s}
+.b-thumb{position:absolute; left:0; width:6px; min-height:16px; border-radius:3px; background:var(--muted); opacity:.75; transition:opacity var(--motion-fast)}
 .b-track:hover .b-thumb, .b-track.held .b-thumb{opacity:1}
 .b-own button[type="submit"]{flex:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
 .b-expand{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer}
@@ -274,23 +282,25 @@ body.desk .floor{display:none}
 .d-back{margin:0 5px 0 -3px; padding:1px 3px; border:0; border-radius:4px; background:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); line-height:1.1; color:var(--muted); cursor:pointer}
 .d-back:hover{color:var(--text); text-decoration:underline}
 .d-dots{display:flex; gap:4px}
-.d-dots i{width:6px; height:6px; border-radius:3px; background:var(--line); transition:width .25s, background .25s}
+.d-dots i{width:6px; height:6px; border-radius:3px; background:var(--line); transition:width var(--motion-slow), background var(--motion-slow)}
 .d-dots i.past{background:color-mix(in srgb, var(--skin-eye) 45%, var(--line))}
 .d-dots i.on{width:16px; background:var(--skin-eye)}
 .d-body{display:flex; flex-direction:column; gap:8px; margin-top:10px}
-.d-body > *{animation:opt-in .24s cubic-bezier(.3,1.4,.5,1) both}
+.d-body > *{animation:rise-in var(--motion-base) var(--motion-pop-soft) both}
 .d-body button, .d-body input{font:inherit}
 .d-row{display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px}
 .d-pill{
   padding:5px 14px; border-radius:999px; border:1.5px solid var(--line); background:var(--bg); color:var(--text);
-  font-size:calc(13.5px * var(--bubble-font, 1)); cursor:pointer; transition:border-color .15s, background .15s, transform .15s;
+  font-size:calc(13.5px * var(--bubble-font, 1)); cursor:pointer; transition:border-color var(--motion-fast), background var(--motion-fast), transform var(--motion-fast);
 }
 .d-pill:hover{border-color:var(--skin-ink)}
 .d-pill.primary{background:var(--skin-ink); border-color:var(--skin-ink); color:var(--surface); font-weight:600}
 .d-pill.primary:hover{background:var(--skin-eye); border-color:var(--skin-eye)}
 .d-pill.swap:not(:hover):not(:focus-visible) .d-pill-hover, .d-pill.swap:is(:hover, :focus-visible) .d-pill-rest{display:none}
-.d-pill.chosen{animation:pill-pick .26s cubic-bezier(.3,1.5,.5,1)}
-@keyframes pill-pick{45%{transform:scale(1.1)}}
+.d-pill.chosen{animation:bump var(--motion-slow) var(--motion-pop)}
+/* a short swell: `--bump` is the largest scale */
+@property --bump{syntax:'<number>'; inherits:false; initial-value:1.1}
+@keyframes bump{45%{transform:scale(var(--bump))}}
 .d-body button:disabled{cursor:default}
 /* the talk key as a key cap that keeps being pressed */
 .d-keys{display:flex; justify-content:center; padding:4px 0 2px}
@@ -318,13 +328,13 @@ body.desk .floor{display:none}
 .d-card{
   position:relative; display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 4px 8px; border-radius:14px;
   border:1.5px solid var(--line); background:var(--bg); color:var(--text); cursor:pointer;
-  animation:opt-in .24s cubic-bezier(.3,1.4,.5,1) both; transition:border-color .15s, background .15s, transform .15s, color .15s;
+  animation:rise-in var(--motion-base) var(--motion-pop-soft) both; transition:border-color var(--motion-fast), background var(--motion-fast), transform var(--motion-fast), color var(--motion-fast);
 }
 .d-card:hover{transform:translateY(-2px); border-color:var(--skin-ink)}
 .d-card.on{border-color:var(--skin-eye); background:color-mix(in srgb, var(--skin-eye) 14%, var(--bg)); color:var(--skin-eye)}
 .d-cardic svg{width:24px; height:24px; display:block}
 .d-cardimg{width:28px; height:28px; display:block; padding:3px; border-radius:7px; background:#fff; box-sizing:border-box}
-.d-card.on .d-cardimg{animation:card-bob .5s cubic-bezier(.3,1.5,.5,1)}
+.d-card.on .d-cardimg{animation:card-bob .5s var(--motion-pop)}
 .d-cardlbl{font-size:calc(13px * var(--bubble-font, 1)); line-height:1.25; overflow-wrap:anywhere; color:var(--text)}
 .d-cardnote{font-size:calc(11px * var(--bubble-font, 1)); line-height:1.35; color:var(--muted); text-align:center}
 .d-level{
@@ -332,7 +342,7 @@ body.desk .floor{display:none}
   background:var(--muted); color:var(--surface); font:700 calc(10px * var(--bubble-font, 1))/calc(15px * var(--bubble-font, 1)) system-ui,sans-serif;
 }
 .d-card.on .d-level{background:var(--skin-eye)}
-.d-card.on .d-cardic{animation:card-bob .5s cubic-bezier(.3,1.5,.5,1)}
+.d-card.on .d-cardic{animation:card-bob .5s var(--motion-pop)}
 @keyframes card-bob{40%{transform:translateY(-4px) rotate(-8deg)}}
 /* cards one per row, the icon before the label */
 .d-cards.list{grid-template-columns:1fr}
@@ -353,14 +363,14 @@ body.desk .floor{display:none}
 .d-card.on .d-cardic.ic-persona_forge{transform-origin:19% 77%; animation:ic-knock .8s ease-in}
 .d-card.on .d-cardic.ic-persona_heart{animation:ic-beat .9s ease-out}
 .d-card.on .d-cardic.ic-persona_winter{animation:ic-drift 1.4s ease-in-out}
-.d-card.on .d-cardic.ic-persona_whale{animation:ic-bob 1s ease-in-out}
+.d-card.on .d-cardic.ic-persona_whale{animation:ic-float 1s ease-in-out}
 .d-card.on .d-cardic.ic-persona_whale .spout{transform-box:fill-box; transform-origin:50% 100%; animation:ic-spout 1s ease-out}
 @keyframes ic-look{20%{transform:translate(-2.5px,0)} 45%{transform:translate(2.5px,-1.5px)} 70%{transform:translate(1px,2px)} 100%{transform:none}}
 @keyframes ic-tip{30%{transform:rotate(-18deg)} 60%{transform:rotate(8deg)} 100%{transform:none}}
 @keyframes ic-knock{18%{transform:rotate(-30deg)} 32%{transform:rotate(4deg)} 44%{transform:none} 62%{transform:rotate(-30deg)} 78%{transform:rotate(4deg)} 90%,100%{transform:none}}
 @keyframes ic-beat{15%{transform:scale(1.28)} 30%{transform:scale(1)} 45%{transform:scale(1.2)} 65%,100%{transform:scale(1)}}
 @keyframes ic-drift{35%{transform:translate(-3px,-2px) rotate(-35deg)} 70%{transform:translate(2px,1px) rotate(20deg)} 100%{transform:none}}
-@keyframes ic-bob{30%{transform:translateY(1.5px)} 60%{transform:translateY(-1px)} 100%{transform:none}}
+@keyframes ic-float{30%{transform:translateY(1.5px)} 60%{transform:translateY(-1px)} 100%{transform:none}}
 @keyframes ic-spout{0%{transform:scaleY(.3); opacity:0} 40%{transform:scaleY(1.5) translateY(-1px); opacity:1} 100%{transform:none}}
 /* the line beside the confirm button, its marked word after an icon */
 .d-foot-row{justify-content:space-between; align-items:center}
@@ -407,11 +417,11 @@ body.desk .floor{display:none}
 .menu > *{position:fixed; pointer-events:auto}
 /* the menu's buttons and the hover buttons: opening, each pops out of the body's side (`--dx`) one after another (`--i`);
    closing, all fold back into it at once (POP_OUT_MS in pet-app.js), taking no clicks meanwhile */
-.menu.entering :is(.m-grid, .m-rail) > *, .tools.entering > *{animation:m-in .28s cubic-bezier(.3,1.5,.5,1) backwards; animation-delay:calc(var(--i, 0) * 22ms)}
-.menu.leaving :is(.m-grid, .m-rail) > *, .tools.leaving > *{animation:m-out .16s ease-in forwards}
+.menu.entering :is(.m-grid, .m-rail) > *, .tools.entering > *{animation:m-in var(--motion-slow) var(--motion-pop) backwards; animation-delay:calc(var(--i, 0) * 22ms)}
+.menu.leaving :is(.m-grid, .m-rail) > *, .tools.leaving > *{animation:m-out var(--pop-out) ease-in forwards}
 .menu.leaving, .menu.leaving > *, .tools.leaving, .tools.leaving > *, .wheel.leaving{pointer-events:none}
 /* a hover button that was showing slides into its tile instead of popping out again */
-.menu.entering .m-grid > .from-tool{animation:m-move .26s cubic-bezier(.2,.8,.3,1) backwards; animation-delay:0s}
+.menu.entering .m-grid > .from-tool{animation:m-move var(--motion-slow) cubic-bezier(.2,.8,.3,1) backwards; animation-delay:0s}
 @keyframes m-move{from{transform:translate(var(--fx, 0), var(--fy, 0))}}
 @keyframes m-in{from{transform:translateX(var(--dx, 0)) scale(.3); opacity:0}}
 @keyframes m-out{to{transform:translateX(var(--dx, 0)) scale(.4); opacity:0}}
@@ -428,7 +438,7 @@ body.desk .floor{display:none}
 .m-quit{
   display:flex; align-items:center; gap:2px; box-sizing:border-box; height:38px; padding:0 0 0 10px; border-radius:19px; overflow:hidden; white-space:nowrap;
   background:var(--sheen), var(--glass); border:2px solid var(--skin-ink); box-shadow:var(--lift); font-size:13px;
-  transition:width .2s ease, height .2s ease;
+  /* it grows from the power button and shrinks back into it by script (growFrom in motion-frames.js) */
 }
 .m-quit > *{flex:none}
 .m-ask{padding-right:4px; line-height:1.3}
@@ -464,12 +474,12 @@ body.desk .floor{display:none}
 /* look wheel: the looks in a row over the body; the farther from the middle, the smaller and fainter */
 .wheel{position:fixed; z-index:6; height:62px}
 /* folding into the middle (WHEEL_OUT_MS in pet-app.js) */
-.wheel.leaving .w-item{transition-timing-function:ease-in; transition-duration:.13s}
+.wheel.leaving .w-item{transition-timing-function:ease-in; transition-duration:var(--wheel-out)}
 .wheel[hidden]{display:none}
 .w-item{
   position:absolute; left:50%; top:50%; width:50px; height:50px; padding:0; border-radius:50%; overflow:hidden; cursor:pointer;
   background:var(--sheen), var(--glass); border:2px solid var(--skin-ink); box-shadow:var(--lift);
-  transition:transform .16s cubic-bezier(.3,1.3,.5,1), opacity .16s;
+  transition:transform var(--motion-fast) cubic-bezier(.3,1.3,.5,1), opacity var(--motion-fast);
 }
 .w-item img, .w-item svg{display:block; width:100%; height:100%; object-fit:cover}
 /* a look's picture at the share of the circle its size gives (looks.js pictureFill), standing on the circle's bottom */
@@ -503,22 +513,21 @@ body.desk .floor{display:none}
   animation:hold-ring var(--hold, .5s) linear forwards;
 }
 @keyframes hold-ring{from{transform:scale(.72); opacity:0} to{transform:scale(1); opacity:1}}
-.tool.sent{animation:tool-sent .36s cubic-bezier(.3,1.5,.5,1)}
-@keyframes tool-sent{45%{transform:scale(1.2)}}
-@media (prefers-reduced-motion: reduce){.wall-glow, .wall-lens, .bubble.said, .w-item{transition:none}}
-@media (prefers-reduced-motion: reduce){.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-bar.wait i, .d-card.on .d-cardic, .d-field.shake, .b-own.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.holding::after, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
-@media (prefers-reduced-motion: reduce){.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
+.tool.sent{animation:bump .36s var(--motion-pop); --bump:1.2}
+:where(:root[data-motion="low"]) {.wall-glow, .wall-lens, .bubble.said, .w-item{transition:none}}
+:where(:root[data-motion="low"]) {.bubble.status.pop, .status .status-icon svg, .status .status-icon svg *, .bubble.pop, .b-opt, .b-own, .d-body > *, .d-card, .d-key, .d-key.taps, .d-card.on .d-cardic, .d-field.shake, .b-own.shake, .d-pill.chosen, .caret, .menu :is(.m-grid, .m-rail) > *, .tools > *, .tool.sent, .tool::before, .tool::after, .tool .ic, .tool .ic::before{animation:none}}
+:where(:root[data-motion="low"]) {.d-cards .d-card.on .d-cardic[class*="ic-persona_"], .d-cards .d-card.on .d-cardic .spout{animation:none}}
 /* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
    keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,
    the power button is pressed */
-.tool{transition:background .15s, border-color .15s, color .15s, box-shadow .15s, scale .15s ease}
-.m-rail > .tool.power{transition:width .2s ease, height .2s ease, scale .15s ease}
+.tool{transition:background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast), scale var(--motion-fast) ease}
+.m-rail > .tool.power{transition:scale var(--motion-fast) ease}
 .tool:hover{scale:1.15}
 .tool:hover .ic svg{transform-origin:center; animation:var(--ic-hover, ic-bob) .5s ease-in-out}
 [data-action="chat"]{--ic-hover:ic-bob}
 [data-action="voice"]{--ic-hover:ic-pulse}
 [data-action="roam"]{--ic-hover:ic-step}
-[data-action="theme"]{--ic-hover:ic-turn}
+[data-action="theme"]{--ic-hover:spin}
 [data-action="sound"]{--ic-hover:ic-shake}
 [data-action="hide"]{--ic-hover:ic-blink}
 [data-action="worlds"]{--ic-hover:ic-lift}
@@ -529,23 +538,22 @@ body.desk .floor{display:none}
 @keyframes ic-bob{40%{transform:translateY(-3px)} 70%{transform:translateY(1px)}}
 @keyframes ic-pulse{35%{transform:scale(1.18)} 70%{transform:scale(.94)}}
 @keyframes ic-step{25%{transform:translateX(-2px) rotate(-6deg)} 75%{transform:translateX(2px) rotate(6deg)}}
-@keyframes ic-turn{to{transform:rotate(360deg)}}
 @keyframes ic-shake{20%,60%{transform:rotate(-10deg)} 40%,80%{transform:rotate(10deg)}}
 @keyframes ic-blink{45%{transform:scaleY(.15)}}
 @keyframes ic-lift{40%{transform:translateY(-3px) scale(1.06)} 70%{transform:translateY(1px)}}
 @keyframes rail-gear{to{transform:rotate(180deg)}}
 @keyframes rail-press{40%{transform:translateY(2px) scale(.9)}}
-@media (prefers-reduced-motion: reduce){.tool:hover .ic svg, .m-rail .tool:hover svg{animation:none}}
+:where(:root[data-motion="low"]) {.tool:hover .ic svg, .m-rail .tool:hover svg{animation:none}}
 /* hover hints (hints.js) in the pet window and the dress window, which takes this sheet too: drawn and animated as the
    settings window's (console/styles.css .u-tip.hover-hint): fading in over 120 ms and out over 120 ms (hints.js LEAVE_MS) */
 .hint{position:fixed; z-index:130; pointer-events:none; box-sizing:border-box; width:max-content; max-width:min(280px, calc(100vw - 16px));
   background:var(--sheen), var(--glass); border:1px solid var(--line); border-radius:8px; padding:5px 9px; box-shadow:0 6px 18px -8px var(--shadow, rgba(0,0,0,.3));
   font-size:12px; line-height:1.45; color:var(--text); overflow-wrap:anywhere; animation:hint-in 120ms ease-out}
 .hint[hidden]{display:none}
-.hint.leaving{animation:hint-out 120ms ease-in forwards}
+.hint.leaving{animation:hint-out var(--hint-out) ease-in forwards}
 @keyframes hint-in{from{opacity:0}}
 @keyframes hint-out{to{opacity:0}}
-@media (prefers-reduced-motion: reduce){.hint, .hint.leaving{animation:none}}
+:where(:root[data-motion="low"]) {.hint, .hint.leaving{animation:none}}
 
 /* the size slider (scale-slider.js), on the dressing page and over the pet */
 .pet-scale{position:relative; flex:none; height:22px; cursor:pointer; touch-action:none; outline:none}
@@ -558,9 +566,9 @@ body.desk .floor{display:none}
 .pet-scale:focus-visible > .ps-thumb{outline:2px solid var(--host-accent, var(--accent)); outline-offset:2px}
 .pet-scale.past > .ps-divider{background:var(--host-accent, var(--accent))}
 /* stepped by key or wheel (scale-slider.js stepTo): the knob and the fill glide to each step, as they follow a drag */
-.pet-scale.stepping > .ps-thumb{transition:left .12s ease-out, scale .15s ease}
-.pet-scale.stepping > .ps-fill{transition:width .12s ease-out}
-@media (prefers-reduced-motion: reduce){.pet-scale.stepping > .ps-thumb, .pet-scale.stepping > .ps-fill{transition:none}}
+.pet-scale.stepping > .ps-thumb{transition:left var(--motion-fast) ease-out, scale var(--motion-fast) ease}
+.pet-scale.stepping > .ps-fill{transition:width var(--motion-fast) ease-out}
+:where(:root[data-motion="low"]) {.pet-scale.stepping > .ps-thumb, .pet-scale.stepping > .ps-fill{transition:none}}
 /* the size and transparency sliders over the body (pet-app.js stepSlider): no backdrop, as the look wheel. The bar is
    drawn as the hover buttons are (the surface, the body's 2px outline, their shadow), the fill and the knob in the body's
    accent; the percentage is a small button-like label over the knob */
@@ -585,7 +593,7 @@ body.desk .floor{display:none}
 .head-slider .pet-scale > .ps-thumb{
   top:3px; width:22px; height:22px; margin-left:-11px; box-sizing:border-box;
   background:var(--skin-eye); border:3px solid var(--surface); box-shadow:0 0 0 2px var(--skin-ink), var(--lift);
-  transition:scale .15s ease;
+  transition:scale var(--motion-fast) ease;
 }
 .head-slider .pet-scale:hover > .ps-thumb{scale:1.1}
 /* held: dragged, or stepped by the wheel a moment ago */
@@ -596,16 +604,38 @@ body.desk .floor{display:none}
   font-size:12px; font-weight:600; line-height:16px; font-variant-numeric:tabular-nums;
   background:var(--sheen), var(--glass); color:var(--text); border:2px solid var(--skin-ink); box-shadow:var(--lift);
 }
-.head-slider.entering{animation:hs-in .24s cubic-bezier(.3,1.4,.5,1) backwards}
+.head-slider.entering{animation:rise-in var(--motion-base) var(--motion-pop-soft) backwards; --rise:8px; --rise-scale:.6}
 /* a group of controls let go of glides back beside the body (pet-app.js follow, RETURN_MS) */
-:is(.tools, .wheel, .head-slider, .m-grid, .m-rail).returning{transition:left .26s cubic-bezier(.2,.7,.3,1), top .26s cubic-bezier(.2,.7,.3,1), right .26s cubic-bezier(.2,.7,.3,1)}
+:is(.tools, .wheel, .head-slider, .m-grid, .m-rail).returning{transition:left var(--return-time) var(--motion-return), top var(--return-time) var(--motion-return), right var(--return-time) var(--motion-return)}
 /* a size or transparency button while it holds its slider open (pet-app.js pinSlider): filled in the eye color, so it reads
    apart from the eye-colored ring a hover alone draws, even with the pointer still on it */
 .tool:is([data-action="size"], [data-action="fade"]).on{color:var(--surface); background:var(--skin-eye); border-color:var(--skin-eye)}
 /* SLIDER_OUT_MS in pet-app.js */
-.head-slider.leaving{animation:hs-out .14s ease-in forwards; pointer-events:none}
-@keyframes hs-in{from{transform:translateY(8px) scale(.6); opacity:0}}
+.head-slider.leaving{animation:hs-out var(--slider-out) ease-in forwards; pointer-events:none}
 @keyframes hs-out{to{transform:translateY(8px) scale(.6); opacity:0}}
-@media (prefers-reduced-motion: reduce){.head-slider{animation:none}}
+:where(:root[data-motion="low"]) {.head-slider{animation:none}}
 
 .fireworks{position:absolute; pointer-events:none}
+
+/* ---------- motion levels: motion-level.js writes data-motion on the root (the settings window's 动态效果, `window.motion`) ---------- */
+/* medium and low: nothing overshoots, and the decoration goes: the dialog's card hops and Persona icons' gestures, the chosen
+   pill's bump, the hover buttons' icon tricks and the dress button's show, the bump after a send; the look wheel settles without overshoot */
+:root:not([data-motion="high"]) { --motion-pop: var(--motion-return); --motion-pop-soft: var(--motion-return); }
+:where(:root:not([data-motion="high"])) {
+  .d-pill.chosen, .d-card.on .d-cardimg, .d-card.on .d-cardic, .d-card.on .d-cardic[class*="ic-persona_"], .d-card.on .d-cardic .spout,
+  .tool[data-action="dress"]:hover, .tool[data-action="dress"]:hover .ic, .tool[data-action="dress"]:hover::before, .tool[data-action="dress"]:hover::after, .tool[data-action="dress"]:hover .ic::before,
+  .tool.sent, .tool:hover .ic svg, .m-rail .tool:hover svg, .m-rail .tool.run:hover svg, .m-rail .tool.power:hover svg { animation: none; }
+  .w-item { transition-timing-function: var(--motion-return); }
+}
+/* low: everything outside the figure lands at once (the figure runs in its own frame); bubbles only fade in; what says
+   something is under way keeps going: the thinking dots, the waiting hourglass, a dialog's progress bar, a held button's ring */
+:where(:root[data-motion="low"]) {
+  &, *:not(.figure-layer *), *:not(.figure-layer *)::before, *:not(.figure-layer *)::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
+  .bubble.pop, .bubble.status.pop { animation: hint-in var(--motion-fast) ease-out !important; }
+  .status[data-kind="think"] circle { animation-name: status-think !important; animation-duration: 1.3s !important; animation-timing-function: ease-in-out !important; animation-iteration-count: infinite !important; }
+  .status[data-kind="think"] circle:nth-child(2) { animation-delay: .16s !important; }
+  .status[data-kind="think"] circle:nth-child(3) { animation-delay: .32s !important; }
+  .status[data-kind="wait"] svg { animation-name: status-wait !important; animation-duration: 2.8s !important; animation-timing-function: ease-in-out !important; animation-iteration-count: infinite !important; }
+  .d-bar.wait i { animation-duration: 1.2s !important; animation-iteration-count: infinite !important; }
+  .tool.holding::after { animation-duration: var(--hold, .5s) !important; }
+}

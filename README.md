@@ -192,13 +192,15 @@ Open the settings window from the tray icon or from Coo's right-click menu.
 | Page | What's there |
 | --- | --- |
 | Start | Model connection, showing or hiding the pet, interface colors, the first-run guide |
-| Habits | Language and names, automatic updates, usage statistics, walking and touch responses, which settings Coo may change itself, shortcuts, display, sound, computer use, OBS overlay |
+| Habits | Language and names, automatic updates, usage statistics, walking and touch responses, which settings Coo may change itself, shortcuts, display (including motion), sound, computer use, OBS overlay |
 | Dress up | Figure, colors and accessories; import or uninstall figure packs |
 | Voice input | Recognition engine or transcription service, model download, talk key, microphone, listening mode, speech threshold |
 | System prompt | Persona and prompt templates; Ctrl+S saves, and **Apply now** puts the new prompt into the current conversation |
 | Usage & cost | Token usage and spending by day and model |
 | Chat | Conversation history, typing, images |
 | World extensions | Installed Worlds, groups and order, the extension market |
+
+**Motion** under Habits → Display sets how much the settings window and the pet animate, both at once: High keeps everything; Medium drops bounces and decorative flourishes, and lists that reorder fade instead of sliding; Low keeps only colour changes and the signs that something is under way (spinners, progress bars, thinking dots), and everything else lands at once. It follows the system's reduce-motion setting by default: Low when the system asks for less motion, High otherwise. Coo's own walking is not affected.
 
 Pause / resume and the switch to **Advanced mode** are at the bottom of the sidebar. Advanced mode adds the **Model connections**, Persona, Memory, **Console** and **Diagnostics** pages. Model connections is where you change models, adjust reasoning effort, add other compatible services, enter prices for services without built-in ones and install provider extensions.
 
