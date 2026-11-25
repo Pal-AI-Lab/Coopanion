@@ -1810,7 +1810,8 @@ function openMenu() {
     b.dataset.action = id;
     b.innerHTML = '<span class="ic"></span>';
     drawAction(b, id);
-    b.addEventListener('click', () => {
+    b.addEventListener('click', (e) => {
+      if (repeatClick(e)) return;
       sfx.tick();
       // as the button was clicked: running it may change whether it keeps the menu open (computer use)
       const keep = a.keep;
@@ -1931,6 +1932,12 @@ function closeMenu() {
   toolsUntil = 0;
 }
 
+/**
+ * The second click of a double click on an action button, which does nothing: a quick second press would undo the
+ * first at once (unpinning the slider just pinned, switching a sound back), as a hand that clicks twice by habit does.
+ */
+const repeatClick = (e) => e.detail > 1;
+
 /** Redraws whatever shows an action: the open menu's tiles and the hover buttons. */
 function refreshButtons() {
   for (const b of menu.querySelectorAll('.m-tile')) drawAction(b, b.dataset.action);
@@ -1960,7 +1967,7 @@ function renderTools() {
       b.type = 'button'; b.className = 'tool'; b.dataset.action = id;
       b.innerHTML = '<span class="ic"></span>';
       if (id === 'voice') wireVoiceTool(b);
-      else b.addEventListener('click', () => { sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
+      else b.addEventListener('click', (e) => { if (repeatClick(e)) return; sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
       tools.appendChild(b);
     }
     stagger(tools);
@@ -2263,7 +2270,8 @@ function stepWheel() {
   // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
   if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
   if (amongControls(p, wheel)) wheelState.until = T + WHEEL_LINGER;
-  if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
+  // a pinned slider keeps the place over the head while the pointer crosses the dress button
+  if (dress && wheel.hidden && !wheelState.empty && !clicksPass() && !pinned) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
 // the mouse wheel turns the row while it shows, over the row or over a dress button
@@ -2288,8 +2296,9 @@ const SLIDER_SEND_MS = 120;
 const FADE = { min: 0, soft: 95, max: 95, step: 5 };
 /**
  * The slider a click on its button pinned, `size` or `fade`, or null. It stays until that button is clicked again, the
- * pointer goes down anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look
- * wheel or a bubble takes the place.
+ * other slider's button is clicked, the pointer goes down anywhere else, the window loses focus (a click in another
+ * program), Escape, or the menu or a bubble the person opened takes the place. Hovering the other slider's button or a
+ * dress button meanwhile opens nothing.
  */
 let pinned = null;
 /** Until when the slider waits on; per kind, the send due while it moves; the wheel's travel toward a step. */
@@ -2414,11 +2423,9 @@ function stepSlider() {
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSlider(null); closeSlider(); return; }
-  // over another kind's button, its slider takes the place, unless the one there is held
-  if (over && over !== shownSlider() && !sliding()) {
-    if (pinned && pinned !== over) pinSlider(null);
-    openSlider(over);
-  }
+  // over another kind's button, its slider takes the place, unless the one there is held or pinned: a pinned slider
+  // stays while the pointer crosses the other buttons, and gives way only to a click on another
+  if (over && over !== shownSlider() && !sliding() && !pinned) openSlider(over);
   // decided after opening: the slider just opened waits on as the pointer rests on its button
   const shown = shownSlider();
   if (sliding() || pinned || amongControls(p, shown && SLIDERS[shown].el)) sliderState.until = T + SLIDER_LINGER;

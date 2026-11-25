@@ -516,7 +516,7 @@ describe('look wheel over the dress button', () => {
     }
   });
 
-  it('leaves a slider being dragged over a dress button in place, without reading the favourites (the number of reads is the behavior)', async () => {
+  it('leaves a pinned slider in place over a dress button, dragged or let go, without reading the favourites (the number of reads is the behavior)', async () => {
     let reads = 0;
     const p = page({ host: true, fetchLooks: async () => { reads++; return [{ id: 'a', name: 'a', skin: {} }]; } });
     p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
@@ -529,12 +529,12 @@ describe('look wheel over the dress button', () => {
     await frames(p);
     expect(reads).toBe(0);
     expect(wheel(p).hidden).toBe(true);
-    // let go with the pointer still on the dress button: the row takes the slider's place
+    // let go with the pointer still on the dress button: the pinned slider keeps the place
     bar.dispatchEvent(new p.win.MouseEvent('pointerup', { clientX: 10, button: 0, bubbles: true }));
     await frames(p);
-    expect(reads).toBe(1);
-    expect(wheel(p).hidden).toBe(false);
-    expect(p.doc.querySelector('.head-slider[data-kind="size"]').classList.contains('leaving')).toBe(true);
+    expect(reads).toBe(0);
+    expect(wheel(p).hidden).toBe(true);
+    expect(p.doc.querySelector('.head-slider[data-kind="size"]').classList.contains('leaving')).toBe(false);
   });
 
   it('reads again when the pointer left while a bubble was showing', async () => {
@@ -739,13 +739,16 @@ describe('the sliders over the head, frame by frame', () => {
     expect(rest(p, { x: 20, y: 20 }, 1)).toEqual(['entering/leaving']);
   });
 
-  it('a slider pinned by a click gives the place up to the other kind hovered, unpinned, and each bar keeps its own range', () => {
+  it('a slider pinned by a click stays with the other kind hovered, gives the place up to it clicked, and each bar keeps its own range', () => {
     const p = desk();
-    const size = p.doc.querySelector('#tools [data-action="size"]');
+    const size = p.doc.querySelector('#tools [data-action="size"]'), fade = p.doc.querySelector('#tools [data-action="fade"]');
     size.click();
     expect(size.classList.contains('on')).toBe(true);
+    expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['entering/hidden']);
+    expect(size.classList.contains('on')).toBe(true);
+    fade.click();
     expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['leaving/entering']);
-    expect(size.classList.contains('on')).toBe(false);
+    expect([size.classList.contains('on'), fade.classList.contains('on')]).toEqual([false, true]);
     const max = (kind) => p.doc.querySelector(`.head-slider[data-kind="${kind}"] .pet-scale`).getAttribute('aria-valuemax');
     expect([max('size'), max('fade')]).toEqual(['10', '95']);
   });
@@ -993,6 +996,21 @@ describe('drawing the action buttons', () => {
     p.onOrder({ t: 'prefs', scale: 1.2, sound: false });
     expect(icon('size')).toBe(size);
     expect(icon('sound')).not.toBe(sound);
+  });
+
+  it('the second click of a double click leaves a slider pinned by the first', async () => {
+    const p = page({ host: { clickThrough() {} } });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.sockets[0].onopen();
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    const size = () => p.doc.querySelector('.tools [data-action="size"]');
+    const click = (detail) => size().dispatchEvent(new p.win.MouseEvent('click', { bubbles: true, detail }));
+    click(1);
+    expect(size().classList.contains('on')).toBe(true);
+    click(2);
+    expect(size().classList.contains('on')).toBe(true);
+    click(1);
+    expect(size().classList.contains('on')).toBe(false);
   });
 });
 
