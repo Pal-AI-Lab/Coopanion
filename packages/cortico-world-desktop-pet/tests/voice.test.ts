@@ -788,13 +788,13 @@ describe('voice input', () => {
     expect(page.messages.some((m) => m.t === 'type')).toBe(false);
   });
 
-  it('the default talk key and the default click-through pause key: tap then hold only listens, a plain hold only pauses click-through', async () => {
+  it("a click-through pause key on the talk key's key: tap then hold only listens, a plain hold only pauses click-through", async () => {
     const { watch, sample } = sampledKeys();
     const { world, page } = await setup('', 'hold', watch);
-    await world.webUi().invoke!('pet', 'setThroughPauseKey', [{ enabled: true }]);
-    const talk = splitTaps(DESKTOP_PET_DEFAULTS.asr.mic.hotkey), pause = splitTaps(DESKTOP_PET_DEFAULTS.throughPauseKey.hotkey);
-    expect([talk.combo, talk.taps, pause.taps]).toEqual([pause.combo, 2, 1]);
-    const key = pause.combo;
+    const talk = splitTaps(DESKTOP_PET_DEFAULTS.asr.mic.hotkey);
+    expect(talk.taps).toBe(2);
+    const key = talk.combo;
+    await world.webUi().invoke!('pet', 'setThroughPauseKey', [{ enabled: true, hotkey: key }]);
 
     sample(key, true, 0);
     sample(key, false, 50);

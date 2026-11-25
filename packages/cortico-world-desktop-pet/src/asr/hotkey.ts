@@ -34,8 +34,8 @@ const NAMED: Record<string, number> = {
 export const DEFAULT_HOTKEY = 'LeftAlt*2';
 /** The typing key a new setup gets once it is switched on: a double tap of left Ctrl (left Control on a Mac). */
 export const DEFAULT_TYPE_KEY = 'LeftCtrl*2';
-/** The click-through pause key a new setup gets once it is switched on: hold left Alt (left Option on a Mac); the talk key's tap and hold stays apart. */
-export const DEFAULT_THROUGH_PAUSE_KEY = 'LeftAlt';
+/** The click-through pause key a new setup gets once it is switched on: hold right Ctrl, which alone opens no menu. */
+export const DEFAULT_THROUGH_PAUSE_KEY = 'RightCtrl';
 
 export interface Hotkey {
   /** Virtual-key codes, all down together. */
