@@ -720,8 +720,23 @@ bubble.addEventListener('click', (e) => {
   bubble.classList.add('fading');
 });
 
+/**
+ * The place over the head is held by the look wheel or a slider, not folding away: the activity bubble, drawn in the
+ * same place, waits for it to go (stepStatus) and shows then if the activity is still going on.
+ */
+const headShown = () => headTaken(null);
+/**
+ * The look wheel or a slider over the head is in use: dragged, or the pointer still among the pet's controls. What Coo
+ * says, asks or shows waits meanwhile (stepDialog) and comes once the person is done, nothing dropped. One left
+ * showing with the pointer gone (a pinned slider) gives way to it as before, so a question is not held past its time.
+ */
+function headInUse() {
+  const el = HEAD.find((o) => !o.el.hidden && !leaving(o.el))?.el;
+  return !!el && (sliding() || amongControls(cursor.at, el));
+}
+
 function stepDialog(dt) {
-  if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
+  if (!item && queue.length && at() && !at().busy && !headInUse()) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
@@ -1580,8 +1595,8 @@ function statusParts(s) {
 }
 const statusLabel = (s) => Object.values(statusParts(s)).join('');
 function stepStatus() {
-  // Never replace dialogue with activity, including while a queued line waits for the body.
-  if (!prefs.statusBubble || listen.phase || item || queue.length) {
+  // Never replace dialogue with activity, including while a queued line waits for the body or for the place over the head.
+  if (!prefs.statusBubble || listen.phase || item || queue.length || headShown()) {
     if (bubble.classList.contains('status')) bubble.hidden = true;
     status.shown = null; status.fadeAt = null;
     return;

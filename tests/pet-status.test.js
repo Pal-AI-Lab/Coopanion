@@ -619,6 +619,51 @@ describe('the size slider pinned by a click on its button', () => {
     button.click();
     expect(shown(p)).toBe(false);
   });
+
+  it('stays while the pointer crosses the transparency button, which takes the place only when clicked', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size', 'fade'] });
+    const size = p.doc.querySelector('#tools [data-action="size"]'), fade = p.doc.querySelector('#tools [data-action="fade"]');
+    // jsdom lays nothing out: the transparency button is placed by hand
+    Object.defineProperty(fade, 'offsetParent', { value: p.doc.body });
+    fade.getBoundingClientRect = () => ({ left: 100, right: 138, top: 100, bottom: 138 });
+    const fader = p.doc.querySelector('.head-slider[data-kind="fade"]');
+    size.click();
+    p.cursor.at = { x: 119, y: 119 };
+    for (let i = 0; i < 4; i++) { p.step(.2); p.stepSlider(); }
+    expect([shown(p), fader.hidden]).toEqual([true, true]);
+    fade.click();
+    expect([shown(p), fader.hidden, fade.classList.contains('on')]).toEqual([false, false, true]);
+  });
+
+  it('keeps the thinking bubble away while it shows, and brings it back once it goes if Coo still thinks', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'], statusBubble: true });
+    const size = p.doc.querySelector('#tools [data-action="size"]');
+    size.click();
+    p.onOrder({ t: 'status', status: { kind: 'think', text: '' } });
+    p.step(1);
+    expect(p.bubble.hidden).toBe(true);
+    size.click();
+    p.step(.1);
+    expect([p.bubble.hidden, p.bubble.classList.contains('status')]).toEqual([false, true]);
+  });
+
+  it("holds back what Coo says while the pointer is on the pet's controls, and lets it take the place once the pointer is gone", () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    p.doc.querySelector('#tools [data-action="size"]').click();
+    // on the body, among the pet's controls
+    p.cursor.at = { x: 450, y: 350 };
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: 'Later' }] });
+    p.step(1);
+    expect(p.bubble.hidden).toBe(true);
+    // the pointer gone, the line comes and the pinned slider gives way
+    p.cursor.at = { x: 900, y: 900 };
+    p.step(.1);
+    p.stepSlider();
+    expect([p.bubble.hidden, p.bubble.classList.contains('say'), shown(p)]).toEqual([false, true, false]);
+  });
 });
 
 describe('the size slider opened by hovering its button', () => {
