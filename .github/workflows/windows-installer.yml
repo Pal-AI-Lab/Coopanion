@@ -1,0 +1,70 @@
+name: windows installer
+
+on:
+  pull_request:
+    paths:
+      - 'installer/**'
+      - 'app/main.cjs'
+      - 'app/core-host.cjs'
+      - 'app/data-dir.cjs'
+      - 'app/installer-events.cjs'
+      - 'scripts/pack.ts'
+      - 'scripts/windows-installer-manifest.cjs'
+      - 'tests/windows-installer.ps1'
+      - 'tests/boot-installed-core.cjs'
+      - 'electron-builder.yml'
+      - '.github/workflows/windows-installer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:installer
+        env:
+          PACK_ARCH: ${{ matrix.arch }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: test-installer-${{ matrix.arch }}
+          path: dist/Coopanion-Setup-*.exe
+          if-no-files-found: error
+
+  exercise:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            os: windows-latest
+          - arch: arm64
+            os: windows-11-arm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: test-installer-${{ matrix.arch }}
+          path: packed
+      - name: Exercise installation, rollback, and recovery
+        shell: pwsh
+        run: ./tests/windows-installer.ps1 -Setup (Get-Item packed/Coopanion-Setup-*.exe).FullName -Arch ${{ matrix.arch }}

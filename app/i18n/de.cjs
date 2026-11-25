@@ -1,5 +1,6 @@
 // Deutsch: text of the main process. Keys as in en.cjs; a key left out reads en.cjs.
 module.exports = {
+  installUpdateFailed: (version) => `Coopanion konnte nicht auf Version ${version} aktualisiert werden.`,
   starting: 'Wird gestartet…',
 
   trayOpenSettings: 'Einstellungen öffnen',
