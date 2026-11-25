@@ -3,7 +3,7 @@ import type { ConfigGroup } from 'cortico/core/config-schema.ts';
 import type { Language } from 'cortico/core/language.ts';
 import type { WorldSection } from 'cortico/world.ts';
 import type { SegmentConfig } from './asr/segmenter.ts';
-import { DEFAULT_HOTKEY, DEFAULT_TYPE_KEY } from './asr/hotkey.ts';
+import { DEFAULT_HOTKEY, DEFAULT_THROUGH_PAUSE_KEY, DEFAULT_TYPE_KEY } from './asr/hotkey.ts';
 import { capFor, petText } from './i18n/index.ts';
 import { CUA_DEFAULTS, cuaConfigGroup, type CuaConfig } from './cua/config.ts';
 
@@ -13,7 +13,7 @@ export const DESKTOP_PET_ID = 'desktop-pet';
 export const USER_MAX = 20;
 
 /** The actions that can show as buttons beside the pet on hover, in their order; the right-click menu shows the same ones. */
-export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'size', 'fade', 'dress', 'cua', 'worlds'] as const;
+export const PET_ACTIONS = ['chat', 'voice', 'roam', 'theme', 'sound', 'hide', 'through', 'size', 'fade', 'dress', 'cua', 'worlds'] as const;
 export type PetAction = typeof PET_ACTIONS[number];
 /** Most hover buttons. */
 export const MAX_HOVER_BUTTONS = 6;
@@ -239,6 +239,8 @@ export interface DesktopPetConfigSection extends WorldSection {
   doubleClickChat: boolean;
   /** A hotkey, written as the talk key is (`src/asr/hotkey.ts`), that opens the typing box from any window while `enabled`. */
   typeKey: { enabled: boolean; hotkey: string };
+  /** A hotkey, written as the talk key is, whose hold lets clicks reach the pet while click-through is on, while `enabled`. */
+  throughPauseKey: { enabled: boolean; hotkey: string };
   /** Show the current activity above the pet, including file names. */
   statusBubble: boolean;
   /** Keep what the person typed, said or sent from the chat page above the pet, for `saidBubbleHoldSec`. */
@@ -349,6 +351,7 @@ export const DESKTOP_PET_DEFAULTS: DesktopPetConfigSection = {
   hoverButtons: 'chat,voice',
   doubleClickChat: false,
   typeKey: { enabled: false, hotkey: DEFAULT_TYPE_KEY },
+  throughPauseKey: { enabled: false, hotkey: DEFAULT_THROUGH_PAUSE_KEY },
   statusBubble: true,
   saidBubbles: true,
   saidBubbleHoldSec: 0,

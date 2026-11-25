@@ -264,6 +264,8 @@ export interface DesktopPetWorldOptions {
   onBotChange?: () => void;
   /** Called when the pet window comes onto the desktop or leaves it: shown or hidden, opened or closed. */
   onDesktopChange?: (onDesktop: boolean) => void;
+  /** Called when click-through is turned on or off, by the pet panel's `setClickThrough` or the pet's own button. */
+  onClickThroughChange?: (on: boolean) => void;
   /** What the status bubble shows for a tool call. */
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World (`model-text.ts`), read at each use; Chinese when absent. */
@@ -492,6 +494,11 @@ export class DesktopPetWorld implements World {
   private typeWatcher: KeyWatcher | null = null;
   private typeKeyProblem: string | null = null;
   private typeKeyKey = '';
+  /** The click-through pause key's watcher while `throughPauseKey.enabled`, why it cannot be read, and whether it is held now. */
+  private throughPauseWatcher: KeyWatcher | null = null;
+  private throughPauseKeyProblem: string | null = null;
+  private throughPauseKeyKey = '';
+  private throughPaused = false;
   private level = -100;
   private readonly chat = new ChatSockets();
   private readonly activity = new ActivityGroup();
@@ -779,6 +786,7 @@ export class DesktopPetWorld implements World {
     if (this.recognitionWanted()) void this.startVoiceBackend();
     await this.syncHotkey();
     await this.syncTypeKey();
+    await this.syncThroughPauseKey();
     this.prefsKey = this.prefsSignature();
     this.prefsTimer = setInterval(() => this.syncPrefs(), PREFS_SYNC_MS);
     this.holidayTimer = setInterval(() => { if (this.desktopTold) this.tellHoliday(); }, HOLIDAY_CHECK_MS);
@@ -808,6 +816,10 @@ export class DesktopPetWorld implements World {
     this.typeWatcher?.stop();
     this.typeWatcher = null;
     this.typeKeyKey = '';
+    this.throughPauseWatcher?.stop();
+    this.throughPauseWatcher = null;
+    this.throughPauseKeyKey = '';
+    this.throughPaused = false;
     if (this.micReleaseTimer) clearTimeout(this.micReleaseTimer);
     this.micReleaseTimer = null;
     for (const c of this.confirms.values()) { clearTimeout(c.timer); c.resolve('unavailable'); }
@@ -1113,6 +1125,7 @@ export class DesktopPetWorld implements World {
     this.cuaSeen = this.cfg.cua.enabled;
     void this.syncHotkey();
     void this.syncTypeKey();
+    void this.syncThroughPauseKey();
     // the person changed what a quiet holds back: theirs wins
     if (this.quiet && (this.cfg.sound !== this.quiet.base.sound || this.cfg.roam !== this.quiet.base.roam)) this.endQuiet();
     this.server.syncOverlay();
@@ -1218,6 +1231,14 @@ export class DesktopPetWorld implements World {
     this.opts.persist({ looks });
   }
 
+  /** Click-through lasts for the run and is not saved; the page enforces it and `onClickThroughChange` hears each change. */
+  private setClickThrough(on: boolean): void {
+    const changed = on !== this.clickThrough;
+    this.clickThrough = on;
+    this.server.sendPet({ t: 'prefs', clickThrough: on });
+    if (changed) this.opts.onClickThroughChange?.(on);
+  }
+
   private savePrefs(prefs: Record<string, unknown>): void {
     const patch: DeepPartial<DesktopPetConfigSection> = {};
     if (prefs.roam === 'free' || prefs.roam === 'calm' || prefs.roam === 'off') patch.roam = prefs.roam as RoamMode;
@@ -1247,6 +1268,7 @@ export class DesktopPetWorld implements World {
       patch.asr = { ...patch.asr, mic: m };
     }
     if (Object.keys(patch).length) this.opts.persist(patch);
+    if (typeof prefs.clickThrough === 'boolean') this.setClickThrough(prefs.clickThrough);
     if (typeof prefs.mic === 'boolean' && prefs.mic && this.recognitionWanted()) void this.startVoiceBackend();
     this.syncPrefs();
   }
@@ -1773,6 +1795,46 @@ export class DesktopPetWorld implements World {
       this.typeKeyProblem = watcher;
       this.log?.warn(`打字键不可用:${watcher}`);
     } else this.typeWatcher = watcher;
+  }
+
+  /**
+   * Starts, restarts or stops the click-through pause key's watcher. It activates on a hold during which no other key or mouse
+   * button went down, so a modifier held for a shortcut does not count; the page then lets clicks reach the pet until release.
+   */
+  private async syncThroughPauseKey(): Promise<void> {
+    const { enabled, hotkey } = this.cfg.throughPauseKey;
+    const key = enabled && this.host ? hotkey : '';
+    if (key === this.throughPauseKeyKey) return;
+    this.throughPauseKeyKey = key;
+    this.throughPauseWatcher?.stop();
+    this.throughPauseWatcher = null;
+    this.throughPauseKeyProblem = null;
+    this.setThroughPaused(false);
+    if (!key) return;
+    const parsed = parseHotkey(hotkey);
+    const watch = this.opts.watchHotkey ?? watchHotkey;
+    const text = { ...this.ui.hotkey, ...this.ui.throughPauseKey };
+    const watcher = parsed ? await watch(parsed, (down) => this.setThroughPaused(down), HOTKEY_POLL_MS, undefined, text, 'holdAlone') : this.ui.voice.badKey(hotkey);
+    if (key !== this.throughPauseKeyKey) { if (typeof watcher !== 'string') watcher.stop(); return; }
+    if (typeof watcher === 'string') {
+      this.throughPauseKeyProblem = watcher;
+      this.log?.warn(`暂停穿透键不可用:${watcher}`);
+    } else this.throughPauseWatcher = watcher;
+  }
+
+  /** The talk key is in use and pressed exactly as the click-through pause key: one hold sets off both. */
+  private throughPauseSharesTalk(): boolean {
+    const { mode, hotkey } = this.cfg.asr.mic;
+    const a = parseHotkey(hotkey), b = parseHotkey(this.cfg.throughPauseKey.hotkey);
+    if (!this.cfg.asr.enabled || mode === 'always' || !a || !b || a.taps !== b.taps) return false;
+    const keys = new Set(b.keys);
+    return new Set(a.keys).size === keys.size && a.keys.every((vk) => keys.has(vk));
+  }
+
+  private setThroughPaused(on: boolean): void {
+    if (on === this.throughPaused) return;
+    this.throughPaused = on;
+    this.server.sendPet({ t: 'throughPause', on });
   }
 
   /** One line telling the person how to be heard. */
@@ -2562,7 +2624,7 @@ export class DesktopPetWorld implements World {
         // hides the window as the pet's menu does; it stays connected and comes back with openWindow
         case 'hideWindow': this.server.sendPet({ t: 'hide' }); return this.petState();
         // the tray's "click through": kept for this run only, and sent again to a window that reconnects
-        case 'setClickThrough': this.clickThrough = args[0] === true; this.server.sendPet({ t: 'prefs', clickThrough: this.clickThrough }); return this.petState();
+        case 'setClickThrough': this.setClickThrough(args[0] === true); return this.petState();
         case 'installElectron': void this.store.electron.install(); return this.petState();
         // the Habits page's custom picks (/api/config writes no list or map): `custom` and its picks in one write, as the person's change
         case 'setWakeKinds': {
@@ -2587,6 +2649,16 @@ export class DesktopPetWorld implements World {
           await this.syncTypeKey();
           // the talk key's trigger depends on the typing key
           await this.syncHotkey();
+          return this.petState();
+        }
+        // the click-through pause key, set as the typing key is
+        case 'setThroughPauseKey': {
+          const raw = args[0] && typeof args[0] === 'object' ? args[0] as Record<string, unknown> : {};
+          const throughPauseKey: { enabled?: boolean; hotkey?: string } = {};
+          if (typeof raw.enabled === 'boolean') throughPauseKey.enabled = raw.enabled;
+          if (typeof raw.hotkey === 'string' && parseHotkey(raw.hotkey)) throughPauseKey.hotkey = raw.hotkey;
+          this.opts.persist({ throughPauseKey });
+          await this.syncThroughPauseKey();
           return this.petState();
         }
         case 'guide': {
@@ -2686,6 +2758,11 @@ export class DesktopPetWorld implements World {
       selfAdjust: { mode: selfAdjustMode(this.cfg.selfAdjust), custom: this.selfCustom() },
       /** The Habits page's typing key: the setting, the keys named in the app language, and why it cannot be read. */
       typeKey: { ...this.cfg.typeKey, keyLabel: comboLabel(this.cfg.typeKey.hotkey, process.platform, this.ui), problem: this.typeKeyProblem },
+      /** The Habits page's click-through pause key, as `typeKey`. */
+      throughPauseKey: {
+        ...this.cfg.throughPauseKey, keyLabel: comboLabel(this.cfg.throughPauseKey.hotkey, process.platform, this.ui),
+        problem: this.throughPauseKeyProblem ?? (this.throughPauseSharesTalk() ? this.ui.throughPauseKey.sharesTalk : null),
+      },
     };
   }
 

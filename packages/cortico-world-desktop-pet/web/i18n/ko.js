@@ -60,6 +60,8 @@ export default {
   'action.dress': '꾸미기',
   'action.worlds': '내 World',
   'action.hide': '저를 잠시 숨기기(트레이 아이콘으로 다시 불러낼 수 있습니다)',
+  'action.throughOn': '클릭 통과: 켜짐 · 클릭하여 끄기',
+  'action.throughOff': '클릭 통과: 꺼짐 · 클릭하여 켜기(트레이 메뉴에서 끄거나, 클릭 통과 일시 중지 키를 누른 채 여기를 클릭)',
   'menu.cancel': '취소',
   'menu.resume': '재개',
   'menu.pause': '일시 중지',

@@ -68,6 +68,15 @@ export default {
     linuxNoX11: '打字键连不上 X11 显示',
     unsupported: '打字键只在 Windows、macOS 和 Linux 上可用',
   },
+  /** 暂停穿透键读不了的原因;另两种与说话键共用 `hotkey` 里的 */
+  throughPauseKey: {
+    macNoKey: 'Mac 上没有这个按键，请更换暂停穿透键',
+    linuxNoKey: 'Linux 上无法读取该按键（不支持鼠标侧键），请更换暂停穿透键',
+    linuxNoDisplay: '暂停穿透键在 Linux 上需要 X11（或 XWayland）：没有找到 DISPLAY',
+    linuxNoX11: '暂停穿透键连不上 X11 显示',
+    unsupported: '暂停穿透键只在 Windows、macOS 和 Linux 上可用',
+    sharesTalk: '和说话键的按法相同：按住时也会开始收音，请更换其中一个',
+  },
 
   /** Windows 自带的语音识别 */
   system: {
@@ -203,7 +212,7 @@ export default {
     theme: { dark: '换成夜间模式', light: '换成白天模式' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `把悬停按钮换成${list}`,
     hoverNone: '去掉所有悬停按钮',
-    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', fade: "透明度", dress: '装扮', cua: "电脑操作", hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
+    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', fade: "透明度", dress: '装扮', cua: "电脑操作", hide: '隐藏桌宠', through: '鼠标穿透', worlds: '我的 World' } as Record<string, string>,
     user: (to: string) => `改叫你「${to}」`,
   },
 
@@ -270,7 +279,7 @@ export default {
     frameRate: { title: '帧率', description: '走动、被拎着、跳起时每秒画多少帧；0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。' },
     lockFrameRate: { title: '帧率锁定', description: '静止时也按「帧率」画桌宠。关着时站着、坐着、睡着降到每秒 30 帧。' },
     motion: { title: "动态效果", description: "界面动画的多少，设置窗口和桌宠窗口一起改变：system 跟随系统的「减少动态效果」（要求减少时为 low，否则为 high），low 只保留颜色变化和加载指示，medium 去掉回弹和装饰性的动画，high 全部保留。Coo 的走动不受影响，见 roam。" },
-    fade: { title: "透明度", description: "桌宠和气泡有多透明：0 为不透明，最高 95%，5% 一档。打字框、提问或确认卡片打开时，以及拎着桌宠时恢复不透明。" },
+    fade: { title: "透明度", description: "桌宠有多透明：0 为不透明，最高 95%，5% 一档。" },
     hideWhenFullscreen: { title: '全屏时自动隐藏', description: '开着时，前台窗口全屏铺满桌宠所在的那块屏（游戏、全屏视频、浏览器全屏）就把 Coo 藏起来，退出全屏放回来；最大化的窗口不算。关着时一直浮在上面。' },
     passWhenFullscreen: { title: "全屏时鼠标穿透", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间 Coo 照常显示，点击全部穿过 Coo 落到下面的窗口，退出全屏后恢复；最大化的窗口不算。和全屏时自动隐藏同时开着时 Coo 会隐藏。" },
     fadeWhenFullscreen: { title: "全屏时变淡", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间改用「全屏时透明度」，退出全屏后恢复；最大化的窗口不算。" },

@@ -480,7 +480,7 @@
   .tool-schema-summary::-webkit-details-marker { display: none; }
   .tool-schema-summary::before { content: '＋'; grid-column: 1; grid-row: 1; width: 18px; color: var(--ink-dim); font: 14px var(--mono); }
   .tool-schema-card[open] > .tool-schema-summary::before { content: '−'; }
-  .tool-schema-title { grid-column: 1; grid-row: 1; padding-left: 24px; color: var(--ink); font: 600 13px var(--mono); }
+  .tool-schema-title { grid-column: 1; grid-row: 1; min-width: 0; padding-left: 24px; color: var(--ink); font: 600 13px/1.5 var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tool-schema-short {
     grid-column: 2; color: var(--ink-soft); font-size: 12px; line-height: 1.45;
     overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;

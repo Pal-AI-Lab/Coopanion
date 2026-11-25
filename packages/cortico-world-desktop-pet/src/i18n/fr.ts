@@ -54,6 +54,14 @@ const fr: Translation<PetText> = {
     linuxNoX11: "La touche de saisie ne peut pas se connecter à l'affichage X11",
     unsupported: 'La touche de saisie ne fonctionne que sous Windows, macOS et Linux',
   },
+  throughPauseKey: {
+    macNoKey: "Un clavier Mac n'a pas cette touche ; choisissez une autre touche de pause des clics à travers",
+    linuxNoKey: 'Linux ne peut pas lire cette touche (les boutons latéraux de la souris ne fonctionnent pas) ; choisissez une autre touche de pause des clics à travers',
+    linuxNoDisplay: "La touche de pause des clics à travers nécessite X11 (ou XWayland) sous Linux : DISPLAY n'est pas défini",
+    linuxNoX11: "La touche de pause des clics à travers ne peut pas se connecter à l'affichage X11",
+    unsupported: 'La touche de pause des clics à travers ne fonctionne que sous Windows, macOS et Linux',
+    sharesTalk: "Se presse comme la touche pour parler : la maintenir lance aussi l'écoute ; changez l'une des deux",
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconnaissance vocale Windows (${culture})` : 'Reconnaissance vocale Windows'),
@@ -181,7 +189,7 @@ const fr: Translation<PetText> = {
     theme: { dark: "passer à l'aspect nuit", light: "passer à l'aspect jour" },
     hover: (list: string) => `mettre comme boutons au survol : ${list}`,
     hoverNone: 'retirer tous les boutons au survol',
-    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', fade: "Transparence", dress: 'Habiller', cua: "Contrôle de l'ordinateur", hide: 'Masquer le compagnon', worlds: 'Mes Worlds' },
+    actions: { chat: 'Écrire', voice: 'Saisie vocale', roam: 'Déplacements', theme: 'Mode nuit', sound: 'Sons', size: 'Taille', fade: "Transparence", dress: 'Habiller', cua: "Contrôle de l'ordinateur", hide: 'Masquer le compagnon', through: 'Clics à travers', worlds: 'Mes Worlds' },
     user: (to: string) => `vous appeler « ${to} »`,
   },
 
@@ -243,7 +251,7 @@ const fr: Translation<PetText> = {
     frameRate: { title: "Fréquence d'images", description: "Images par seconde quand le compagnon marche, saute ou se fait porter ; 0 suit l'écran. Au-delà de la fréquence de rafraîchissement de l'écran, celle de l'écran s'applique. La page Habitudes propose 60, 120, 144 et Illimitée." },
     lockFrameRate: { title: 'Verrouiller la fréquence', description: "Dessine aussi le compagnon à cette fréquence au repos. Désactivé, elle descend à 30 images par seconde quand le compagnon se tient debout, s'assoit ou dort." },
     motion: { title: "Animations", description: "Quantité d'animation de l'interface, dans la fenêtre des réglages et celle du compagnon : system suit le réglage système de réduction des animations (low s'il en demande moins, high sinon), low ne garde que les changements de couleur et les indicateurs de chargement, medium retire les rebonds et les animations décoratives, high garde tout. Les mouvements de Coo ne changent pas ; voir roam." },
-    fade: { title: "Transparence", description: "À quel point le compagnon et ses bulles sont transparents : 0 est opaque, jusqu'à 95 %, par pas de 5 %. Le compagnon redevient opaque tant que la zone de saisie, une question ou une confirmation est ouverte, et tant qu'il est porté." },
+    fade: { title: "Transparence", description: "À quel point le compagnon est transparent : 0 est opaque, jusqu'à 95 %, par pas de 5 %." },
     hideWhenFullscreen: { title: 'Masquer en plein écran', description: 'Activé, le compagnon se cache quand la fenêtre au premier plan remplit l\'écran de Coo (un jeu, une vidéo en plein écran, un navigateur en plein écran) et revient à la fin du plein écran ; une fenêtre agrandie ne compte pas. Désactivé, le compagnon reste toujours au premier plan.' },
     passWhenFullscreen: { title: "Laisser passer les clics en plein écran", description: "Activé, tant que la fenêtre au premier plan remplit l'écran de Coo, Coo reste visible et chaque clic passe à travers lui vers la fenêtre en dessous, jusqu'à la fin du plein écran ; une fenêtre agrandie ne compte pas. Si « Masquer en plein écran » est aussi activé, Coo se cache." },
     fadeWhenFullscreen: { title: "Estomper en plein écran", description: "Activé, tant que la fenêtre au premier plan remplit l'écran de Coo, la transparence en plein écran remplace la transparence habituelle, jusqu'à la fin du plein écran ; une fenêtre agrandie ne compte pas." },

@@ -54,6 +54,14 @@ const zhHant: Translation<PetText> = {
     linuxNoX11: '打字鍵連不上 X11 顯示',
     unsupported: '打字鍵只能在 Windows、macOS 和 Linux 上使用',
   },
+  throughPauseKey: {
+    macNoKey: 'Mac 上沒有這個按鍵，請更換暫停穿透鍵',
+    linuxNoKey: 'Linux 上無法讀取該按鍵（不支援滑鼠側鍵），請更換暫停穿透鍵',
+    linuxNoDisplay: '暫停穿透鍵在 Linux 上需要 X11（或 XWayland）：沒有設定 DISPLAY',
+    linuxNoX11: '暫停穿透鍵連不上 X11 顯示',
+    unsupported: '暫停穿透鍵只能在 Windows、macOS 和 Linux 上使用',
+    sharesTalk: '和說話鍵的按法相同：按住時也會開始收音，請更換其中一個',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 語音辨識（${culture}）` : 'Windows 語音辨識'),
@@ -181,7 +189,7 @@ const zhHant: Translation<PetText> = {
     theme: { dark: '換成夜間模式', light: '換成白天模式' },
     hover: (list: string) => `把懸停按鈕換成${list}`,
     hoverNone: '拿掉所有懸停按鈕',
-    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', fade: "透明度", dress: '裝扮', cua: "電腦操作", hide: '隱藏桌寵', worlds: '我的 World' },
+    actions: { chat: '打字', voice: '語音輸入', roam: '走動', theme: '夜間模式', sound: '音效', size: '大小', fade: "透明度", dress: '裝扮', cua: "電腦操作", hide: '隱藏桌寵', through: '滑鼠穿透', worlds: '我的 World' },
     user: (to: string) => `改叫你「${to}」`,
   },
 
@@ -243,7 +251,7 @@ const zhHant: Translation<PetText> = {
     frameRate: { title: '幀率', description: '走動、被拎著、跳起時每秒畫幾幀；0 跟隨螢幕更新率。超過螢幕更新率時以螢幕的為準。「習慣」頁可選 60、120、144 和不限。' },
     lockFrameRate: { title: '幀率鎖定', description: '靜止時也依「幀率」繪製桌寵。關閉時站著、坐著、睡著會降到每秒 30 幀。' },
     motion: { title: "動態效果", description: "介面動畫的多寡，設定視窗和桌寵視窗一起改變：system 跟隨系統的「減少動態效果」（要求減少時為 low，否則為 high），low 只保留顏色變化和載入指示，medium 去掉回彈和裝飾性的動畫，high 全部保留。Coo 的走動不受影響，見 roam。" },
-    fade: { title: "透明度", description: "桌寵和氣泡的透明程度：0 為不透明，最高 95%，每 5% 一檔。打字框、提問或確認卡片開啟時，以及拎著桌寵時恢復不透明。" },
+    fade: { title: "透明度", description: "桌寵的透明程度：0 為不透明，最高 95%，每 5% 一檔。" },
     hideWhenFullscreen: { title: '全螢幕時自動隱藏', description: '開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕（遊戲、全螢幕影片、瀏覽器全螢幕）就把 Coo 藏起來，離開全螢幕後再放回來；最大化的視窗不算。關閉時一律浮在最上層。' },
     passWhenFullscreen: { title: "全螢幕時滑鼠穿透", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間 Coo 照常顯示，點擊全部穿過 Coo 落到下方的視窗，離開全螢幕後恢復；最大化的視窗不算。與全螢幕時自動隱藏同時開啟時 Coo 會隱藏。" },
     fadeWhenFullscreen: { title: "全螢幕時變淡", description: "開啟時，前景視窗以全螢幕鋪滿桌寵所在的那個螢幕期間改用「全螢幕時透明度」，離開全螢幕後恢復；最大化的視窗不算。" },

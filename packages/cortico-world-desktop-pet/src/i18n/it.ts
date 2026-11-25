@@ -54,6 +54,14 @@ const it: Translation<PetText> = {
     linuxNoX11: 'Il tasto per scrivere non riesce a collegarsi al display X11',
     unsupported: 'Il tasto per scrivere funziona solo su Windows, macOS e Linux',
   },
+  throughPauseKey: {
+    macNoKey: 'Una tastiera Mac non ha questo tasto; scegli un altro tasto di pausa dei clic attraverso',
+    linuxNoKey: 'Linux non può leggere questo tasto (i tasti laterali del mouse non funzionano); scegli un altro tasto di pausa dei clic attraverso',
+    linuxNoDisplay: 'Su Linux il tasto di pausa dei clic attraverso richiede X11 (o XWayland): DISPLAY non è impostato',
+    linuxNoX11: 'Il tasto di pausa dei clic attraverso non riesce a collegarsi al display X11',
+    unsupported: 'Il tasto di pausa dei clic attraverso funziona solo su Windows, macOS e Linux',
+    sharesTalk: "Si preme come il tasto per parlare: tenerlo premuto avvia anche l'ascolto; cambiane uno dei due",
+  },
 
   system: {
     name: (culture: string) => (culture ? `Riconoscimento vocale di Windows (${culture})` : 'Riconoscimento vocale di Windows'),
@@ -181,7 +189,7 @@ const it: Translation<PetText> = {
     theme: { dark: "passare all'aspetto notte", light: "passare all'aspetto giorno" },
     hover: (list: string) => `cambiare i pulsanti al passaggio in ${list}`,
     hoverNone: 'togliere tutti i pulsanti al passaggio',
-    actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', size: 'Dimensione', fade: "Trasparenza", dress: 'Guardaroba', cua: "Controllo del computer", hide: "Nascondi l'animaletto", worlds: 'I miei World' },
+    actions: { chat: 'Scrivi', voice: 'Input vocale', roam: 'Movimento', theme: 'Modalità notte', sound: 'Suoni', size: 'Dimensione', fade: "Trasparenza", dress: 'Guardaroba', cua: "Controllo del computer", hide: "Nascondi l'animaletto", through: 'Clic attraverso', worlds: 'I miei World' },
     user: (to: string) => `chiamarti «${to}»`,
   },
 
@@ -243,7 +251,7 @@ const it: Translation<PetText> = {
     frameRate: { title: 'Frequenza fotogrammi', description: "Fotogrammi al secondo mentre l'animaletto cammina, si fa portare o salta; 0 segue lo schermo. Oltre la frequenza di aggiornamento dello schermo vale quella dello schermo. La pagina Abitudini offre 60, 120, 144 e Illimitata." },
     lockFrameRate: { title: 'Blocca la frequenza', description: "Disegna l'animaletto a questa frequenza anche quando non si muove. Se disattivato, scende a 30 fotogrammi al secondo quando sta in piedi, sta a sedere o dorme." },
     motion: { title: "Animazioni", description: "Quanto si muove l'interfaccia, nella finestra delle impostazioni e in quella dell'animaletto: system segue l'impostazione di sistema per ridurre il movimento (low se ne chiede meno, altrimenti high), low lascia solo i cambi di colore e gli indicatori di caricamento, medium toglie i rimbalzi e le animazioni decorative, high tiene tutto. Il movimento di Coo non cambia; vedi roam." },
-    fade: { title: "Trasparenza", description: "Quanto sono trasparenti l'animaletto e i suoi fumetti: 0 è opaco, fino al 95%, a passi del 5%. L'animaletto torna opaco mentre sono aperti il riquadro di testo, una domanda o una conferma, e mentre lo trasporti." },
+    fade: { title: "Trasparenza", description: "Quanto è trasparente l'animaletto: 0 è opaco, fino al 95%, a passi del 5%." },
     hideWhenFullscreen: { title: 'Nascondi a schermo intero', description: "Se attivo, l'animaletto si nasconde mentre la finestra in primo piano riempie lo schermo di Coo (un gioco, un video a schermo intero, un browser a schermo intero) e torna quando lo schermo intero finisce; una finestra ingrandita non conta. Se disattivato, resta sempre in primo piano." },
     passWhenFullscreen: { title: "Lascia passare i clic a schermo intero", description: "Se attivo, mentre la finestra in primo piano riempie lo schermo di Coo, Coo resta visibile e ogni clic lo attraversa fino alla finestra sotto, finché lo schermo intero non finisce; una finestra ingrandita non conta. Se è attivo anche «Nascondi a schermo intero», Coo si nasconde." },
     fadeWhenFullscreen: { title: "Sfuma a schermo intero", description: "Se attivo, mentre la finestra in primo piano riempie lo schermo di Coo, la trasparenza a schermo intero sostituisce quella abituale, finché lo schermo intero non finisce; una finestra ingrandita non conta." },

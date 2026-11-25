@@ -9,6 +9,7 @@
   --accent:#00A870;
   --skin-ink:#1B1626; --skin-eye:#00A870;
   --wall:#E8E6EE; --dot:#CFCBD9; --shadow:rgba(27,22,38,.12);
+  --sheen-top:rgba(255,255,255,.6); --sheen-bottom:rgba(27,22,38,.035);
   --said-bg:#E6E9E7; --said-ink:#1F2221;
   --blush:#FF8FA8; --tear:#5AAEF0; --anger:#E5484D; --heart:#F0567A; --dust:#A39DB0;
   /* paused, as the settings window's rail shows it */
@@ -21,6 +22,7 @@
     --accent:#2FD59B;
     --skin-ink:#FFFFFF; --skin-eye:#2FD59B;
     --wall:#10151C; --dot:#232B37; --shadow:rgba(0,0,0,.32);
+    --sheen-top:rgba(255,255,255,.09); --sheen-bottom:rgba(0,0,0,.16);
     --said-bg:#2C3230; --said-ink:#E6EAE8;
     --blush:#FF7F9E; --tear:#6BBDF7; --anger:#FF6369; --heart:#FF6F93; --dust:#5B6472; --warn:#C4A372;
   }
@@ -31,8 +33,20 @@
   --accent:#2FD59B;
   --skin-ink:#FFFFFF; --skin-eye:#2FD59B;
   --wall:#10151C; --dot:#232B37; --shadow:rgba(0,0,0,.32);
+  --sheen-top:rgba(255,255,255,.09); --sheen-bottom:rgba(0,0,0,.16);
   --said-bg:#2C3230; --said-ink:#E6EAE8;
   --blush:#FF7F9E; --tear:#6BBDF7; --anger:#FF6369; --heart:#FF6F93; --dust:#5B6472; --warn:#C4A372;
+}
+/* the controls and bubbles drawn over the desktop, a little see-through and lit from above: the controls' face lets the
+   desktop show through while their rings and icons stay solid; a bubble fades as a whole (--bubble-alpha), so its tail,
+   which covers the border where it joins, stays seamless. --sheen is the light from above, --lift their two-layer shadow.
+   --halo, the ring a pointed button gets, is a colour change: it stays at medium motion and comes at once at low. */
+:root{
+  --glass:color-mix(in srgb, var(--surface) 90%, transparent);
+  --sheen:linear-gradient(180deg, var(--sheen-top), var(--sheen-bottom));
+  --lift:0 1px 2px var(--shadow), 0 6px 16px var(--shadow);
+  --halo:0 0 0 4px color-mix(in srgb, var(--skin-eye) 16%, transparent);
+  --bubble-alpha:.94;
 }
 *{box-sizing:border-box}
 html,body{margin:0; height:100%; overflow:hidden}
@@ -78,15 +92,15 @@ body.tab .floor{position:fixed; left:0; right:0; bottom:0; height:48px; backgrou
 /* the night/day button at the stage's top left */
 .stage-mode{
   position:absolute; top:12px; left:12px; z-index:2; display:grid; place-items:center; width:32px; height:32px; padding:0;
-  border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--text); cursor:pointer;
-  box-shadow:0 4px 12px var(--shadow); transition:color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast);
+  border-radius:50%; border:1px solid var(--line); background:var(--sheen), var(--glass); color:var(--text); cursor:pointer;
+  box-shadow:0 1px 2px var(--shadow), 0 4px 12px var(--shadow); transition:color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast);
 }
 body.tab .stage-mode{position:fixed}
 .stage-mode:hover{color:var(--skin-eye); border-color:var(--skin-eye); transform:scale(1.06)}
 .stage-mode svg{width:17px; height:17px; display:block}
 body.desk{background:transparent}
 body.desk .floor{display:none}
-/* --pet-opacity: the transparency on screen (pet-app.js stepFade), on the body and every bubble, never on the controls */
+/* --pet-opacity: the transparency on screen (pet-app.js stepFade), on the body only, never on a bubble or a control */
 .stage{position:fixed; inset:0; touch-action:none; opacity:var(--pet-opacity, 1); transition:opacity var(--motion-base) ease}
 :where(:root[data-motion="low"]) {.stage{transition:none}}
 /* the body's sandboxed frame: transparent (a colour scheme unlike the frame's would give it a backdrop) and never under the pointer */
@@ -148,11 +162,12 @@ body.desk .floor{display:none}
    factors set by pet-app.js from the bubbleSize and fontSize settings and unset at 1; the border keeps its line. */
 .bubble{
   position:fixed; left:0; top:0; z-index:3; width:max-content; min-width:calc(58px * var(--bubble-size, 1)); max-width:min(calc(300px * var(--bubble-size, 1)), calc(100vw - 20px));
-  padding:calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius:calc(18px * var(--bubble-size, 1)); background:var(--surface); color:var(--text);
-  border:2.5px solid var(--skin-ink); box-shadow:0 8px 22px var(--shadow);
+  padding:calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius:calc(18px * var(--bubble-size, 1));
+  background:linear-gradient(180deg, var(--sheen-top), transparent 45%), var(--surface); color:var(--text);
+  border:2.5px solid var(--skin-ink); box-shadow:0 1px 3px var(--shadow), 0 8px 22px var(--shadow);
   font-size:calc(14.5px * var(--bubble-font, 1)); line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + calc(10px * var(--bubble-size, 1)));
-  opacity:var(--pet-opacity, 1); transition:opacity var(--motion-base) ease;
+  opacity:var(--bubble-alpha); transition:opacity var(--motion-base) ease;
 }
 /* tail: an outline triangle whose base lies inside the border, so its sides join the border, and a
    surface triangle one line width inside it that opens the border between the sides. Neither is
@@ -169,14 +184,14 @@ body.desk .floor{display:none}
 /* the surface triangle is the outline one moved up by the line's width across its 45° sides (--tail-line × √2, set by
    pet-app.js to the width the border is drawn at), unscaled, so the tail's line matches the border at any --bubble-size */
 .bubble::after{background:var(--surface); clip-path:path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate:0 calc(var(--tail-line, 2.5px) * -1.4142)}
-.bubble.heard{background:var(--said-bg); color:var(--said-ink); border-color:transparent; box-shadow:0 4px 14px var(--shadow); max-width:min(calc(260px * var(--bubble-size, 1)), calc(100vw - 20px))}
+.bubble.heard{background:linear-gradient(180deg, var(--sheen-top), transparent 45%), var(--said-bg); color:var(--said-ink); border-color:transparent; box-shadow:0 4px 14px var(--shadow); max-width:min(calc(260px * var(--bubble-size, 1)), calc(100vw - 20px))}
 .bubble.heard::before, .bubble.heard::after{display:none}
 /* what the person said, above Coo (pet-app.js lines): a settled one closes on a click, lit in the eye color on hover as the
    hover buttons are; older ones step back; a fading one lets the pointer through. Its text shows six rows at most. */
 .bubble.said{transition:opacity .4s ease, border-color var(--motion-fast)}
 .bubble.said.settled{cursor:pointer}
-.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:var(--pet-opacity, 1)}
-.bubble.said.older{opacity:calc(.62 * var(--pet-opacity, 1))}
+.bubble.said.settled:hover{border-color:var(--skin-eye); opacity:var(--bubble-alpha)}
+.bubble.said.older{opacity:calc(.62 * var(--bubble-alpha))}
 .bubble.said.fading{opacity:0; pointer-events:none}
 .bubble.said.settled .b-text{display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:6; line-clamp:6; overflow:hidden}
 /* the way a line came, before its text: the voice button's microphone, the chat page's arrows */
@@ -240,10 +255,10 @@ body.desk .floor{display:none}
 .b-side{position:absolute; left:calc(100% + 8.5px); top:-2.5px; display:flex; flex-direction:column; align-items:center; gap:6px; width:26px}
 .b-close{
   display:grid; place-items:center; width:26px; height:26px; padding:0; border-radius:50%; cursor:pointer;
-  background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 4px 12px var(--shadow);
-  transition:border-color var(--motion-fast), color var(--motion-fast), scale var(--motion-fast) ease;
+  background:var(--sheen), var(--glass); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 1px 2px var(--shadow), 0 4px 12px var(--shadow);
+  transition:border-color var(--motion-fast), color var(--motion-fast), scale var(--motion-fast) ease, box-shadow var(--motion-fast);
 }
-.b-close:hover{color:var(--skin-eye); border-color:var(--skin-eye); scale:1.1}
+.b-close:hover{color:var(--skin-eye); border-color:var(--skin-eye); scale:1.1; box-shadow:var(--halo), 0 1px 2px var(--shadow), 0 4px 12px var(--shadow)}
 .b-close svg{display:block; width:12px; height:12px; fill:none; stroke:currentColor; stroke-width:2px; stroke-linecap:round}
 .b-track{position:relative; width:6px; border-radius:3px; background:color-mix(in srgb, var(--line) 60%, transparent); cursor:pointer; touch-action:none}
 .b-thumb{position:absolute; left:0; width:6px; min-height:16px; border-radius:3px; background:var(--muted); opacity:.75; transition:opacity var(--motion-fast)}
@@ -423,7 +438,7 @@ body.desk .floor{display:none}
 /* the quit question: the power button grown into a row of the prompt and the two answers */
 .m-quit{
   display:flex; align-items:center; gap:2px; box-sizing:border-box; height:38px; padding:0 0 0 10px; border-radius:19px; overflow:hidden; white-space:nowrap;
-  background:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow); font-size:13px;
+  background:var(--sheen), var(--glass); border:2px solid var(--skin-ink); box-shadow:var(--lift); font-size:13px;
   /* it grows from the power button and shrinks back into it by script (growFrom in motion-frames.js) */
 }
 .m-quit > *{flex:none}
@@ -464,7 +479,7 @@ body.desk .floor{display:none}
 .wheel[hidden]{display:none}
 .w-item{
   position:absolute; left:50%; top:50%; width:50px; height:50px; padding:0; border-radius:50%; overflow:hidden; cursor:pointer;
-  background:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+  background:var(--sheen), var(--glass); border:2px solid var(--skin-ink); box-shadow:var(--lift);
   transition:transform var(--motion-fast) cubic-bezier(.3,1.3,.5,1), opacity var(--motion-fast);
 }
 .w-item img, .w-item svg{display:block; width:100%; height:100%; object-fit:cover}
@@ -473,22 +488,23 @@ body.desk .floor{display:none}
 .w-item .look-pic > svg, .w-item .look-pic > img{width:calc(100% * var(--look-fill)); height:calc(100% * var(--look-fill))}
 /* the look worn that is not a favourite: kept for the row to turn back to */
 .w-item.worn{border-style:dashed}
-.w-item.on{border-color:var(--skin-eye); box-shadow:0 0 0 3px color-mix(in srgb, var(--skin-eye) 30%, transparent), 0 6px 16px var(--shadow)}
+.w-item.on{border-color:var(--skin-eye); box-shadow:0 0 0 3px color-mix(in srgb, var(--skin-eye) 30%, transparent), var(--lift)}
 /* hover buttons: the actions chosen in settings, in columns of up to three beside the pet */
 .tools{position:fixed; left:0; top:0; z-index:4; display:grid; grid-auto-flow:column; gap:8px}
 .tools[hidden]{display:none}
 .tool{
   position:relative; display:grid; place-items:center; width:38px; height:38px; padding:0; border-radius:50%; cursor:pointer;
-  background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+  background:var(--sheen), var(--glass); color:var(--text); border:2px solid var(--skin-ink); box-shadow:var(--lift);
 }
 .tool .ic{position:relative; display:grid; place-items:center}
-.tool:hover{color:var(--skin-eye); border-color:var(--skin-eye)}
+.tool:hover{color:var(--skin-eye); border-color:var(--skin-eye); box-shadow:var(--halo), var(--lift)}
 .tool svg{width:22px; height:22px; display:block}
 /* the key badge sits off the button's lower right, clear of the icon */
 .tool .badge{right:-14px; bottom:-9px}
-/* a switch that is off, as a hover button and in the menu alike: its crossed-out icon muted on a dashed ring;
-   the voice switch is also muted while the recognizer is not ready, and its hover button lit while hearing */
-.tool.off{color:var(--muted); border-style:dashed}
+/* a switch that is off, as a hover button and in the menu alike: its icon muted on a neutral grey face and ring, a little
+   see-through; the voice switch is also muted while the recognizer is not ready, and its hover button lit while hearing */
+.tool.off{color:var(--muted); background:color-mix(in srgb, #9AA0A8 28%, var(--surface)); opacity:.75}
+.tool.off:not(:hover){border-color:color-mix(in srgb, #9AA0A8 70%, var(--surface))}
 /* not ready yet: muted, at the same line weight (a faded icon reads as a thinner one) */
 .tool.waiting{color:var(--muted)}
 .tool.live{color:var(--skin-eye); border-color:var(--skin-eye)}
@@ -505,7 +521,7 @@ body.desk .floor{display:none}
 /* pointed at: every round button grows a little and its icon moves once in a way that fits it (the dress button
    keeps its own colours and sparkles above); the run controls on the menu's left: the gear turns, the pause swells,
    the power button is pressed */
-.tool{transition:background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast), scale var(--motion-fast) ease}
+.tool{transition:background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast), scale var(--motion-fast) ease}
 .m-rail > .tool.power{transition:scale var(--motion-fast) ease}
 .tool:hover{scale:1.15}
 .tool:hover .ic svg{transform-origin:center; animation:var(--ic-hover, ic-bob) .5s ease-in-out}
@@ -532,7 +548,7 @@ body.desk .floor{display:none}
 /* hover hints (hints.js) in the pet window and the dress window, which takes this sheet too: drawn and animated as the
    settings window's (console/styles.css .u-tip.hover-hint): fading in over 120 ms and out over 120 ms (hints.js LEAVE_MS) */
 .hint{position:fixed; z-index:130; pointer-events:none; box-sizing:border-box; width:max-content; max-width:min(280px, calc(100vw - 16px));
-  background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:5px 9px; box-shadow:0 6px 18px -8px var(--shadow, rgba(0,0,0,.3));
+  background:var(--sheen), var(--glass); border:1px solid var(--line); border-radius:8px; padding:5px 9px; box-shadow:0 6px 18px -8px var(--shadow, rgba(0,0,0,.3));
   font-size:12px; line-height:1.45; color:var(--text); overflow-wrap:anywhere; animation:hint-in 120ms ease-out}
 .hint[hidden]{display:none}
 .hint.leaving{animation:hint-out var(--hint-out) ease-in forwards}
@@ -561,7 +577,7 @@ body.desk .floor{display:none}
 .head-slider[hidden]{display:none}
 .head-slider .pet-scale{height:28px}
 .head-slider .pet-scale > .ps-main, .head-slider .pet-scale > .ps-tail{
-  top:6px; height:16px; box-sizing:border-box; background-color:var(--surface); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+  top:6px; height:16px; box-sizing:border-box; background-color:var(--glass); border:2px solid var(--skin-ink); box-shadow:var(--lift);
 }
 .head-slider .pet-scale > .ps-main{border-radius:8px 0 0 8px; border-right:0}
 /* the transparency slider has no stretch past a divider */
@@ -577,7 +593,7 @@ body.desk .floor{display:none}
 .head-slider .pet-scale.past > .ps-divider{background:var(--skin-eye)}
 .head-slider .pet-scale > .ps-thumb{
   top:3px; width:22px; height:22px; margin-left:-11px; box-sizing:border-box;
-  background:var(--skin-eye); border:3px solid var(--surface); box-shadow:0 0 0 2px var(--skin-ink), 0 6px 16px var(--shadow);
+  background:var(--skin-eye); border:3px solid var(--surface); box-shadow:0 0 0 2px var(--skin-ink), var(--lift);
   transition:scale var(--motion-fast) ease;
 }
 .head-slider .pet-scale:hover > .ps-thumb{scale:1.1}
@@ -587,13 +603,14 @@ body.desk .floor{display:none}
   position:absolute; left:50%; bottom:calc(100% + 8px); translate:-50% 0; min-width:44px; padding:2px 8px; box-sizing:border-box;
   border-radius:999px; text-align:center; white-space:nowrap; pointer-events:none;
   font-size:12px; font-weight:600; line-height:16px; font-variant-numeric:tabular-nums;
-  background:var(--surface); color:var(--text); border:2px solid var(--skin-ink); box-shadow:0 6px 16px var(--shadow);
+  background:var(--sheen), var(--glass); color:var(--text); border:2px solid var(--skin-ink); box-shadow:var(--lift);
 }
 .head-slider.entering{animation:rise-in var(--motion-base) var(--motion-pop-soft) backwards; --rise:8px; --rise-scale:.6}
 /* a group of controls let go of glides back beside the body (pet-app.js follow, RETURN_MS) */
 :is(.tools, .wheel, .head-slider, .m-grid, .m-rail).returning{transition:left var(--return-time) var(--motion-return), top var(--return-time) var(--motion-return), right var(--return-time) var(--motion-return)}
-/* a size or transparency button while it holds its slider open (pet-app.js pinSlider) */
-.tool:is([data-action="size"], [data-action="fade"]).on{color:var(--skin-eye); border-color:var(--skin-eye)}
+/* a size or transparency button while it holds its slider open (pet-app.js pinSlider): filled in the eye color, so it reads
+   apart from the eye-colored ring a hover alone draws, even with the pointer still on it */
+.tool:is([data-action="size"], [data-action="fade"]).on{color:var(--surface); background:var(--skin-eye); border-color:var(--skin-eye)}
 /* SLIDER_OUT_MS in pet-app.js */
 .head-slider.leaving{animation:hs-out var(--slider-out) ease-in forwards; pointer-events:none}
 @keyframes hs-out{to{transform:translateY(8px) scale(.6); opacity:0}}

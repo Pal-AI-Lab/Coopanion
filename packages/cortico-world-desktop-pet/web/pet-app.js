@@ -144,6 +144,8 @@ function connect() {
     ws = null;
     stopMic();
     talkKeyDown = false;
+    // a key let go of while the World was away never reports its release
+    pauseHeld = false;
     // the World gave up on these steps when the page went; it asks again once the page is back
     dropDialogs();
     setStatus(null);
@@ -160,8 +162,27 @@ host?.onShown?.((shown) => { windowShown = shown; sfx.setShown(shown); reportVis
 /** Clicks pass through because a fullscreen window covers the pet's display and the setting says so; the window process decides. */
 let fullscreenThrough = false;
 host?.onFullscreenThrough?.((on) => { fullscreenThrough = on; });
-/** Every click passes through the pet right now, by the tray or the fullscreen setting. */
-const clicksPass = () => prefs.clickThrough || fullscreenThrough;
+/** The click-through pause key is held; the World says when it activates and is let go. */
+let pauseHeld = false;
+/**
+ * Clicks reach the pet despite click-through while the click-through pause key is held, and while something begun
+ * with the mouse or waiting on the person is under way: the typing box, a question or a confirmation, the right-click
+ * menu, the look wheel or a pinned slider open, the body held, a slider or the typing box's scrollbar dragged. Each
+ * of those ends on its own, a click elsewhere or the window losing focus included.
+ */
+const openNow = (el) => !el.hidden && !leaving(el);
+const clicksLent = () => pauseHeld || (!!item && item.kind !== 'say') || openNow(menu) || openNow(wheel) || pinned !== null
+  || pressing || barHeld || sliding();
+/** Every click passes through the pet right now, by the tray or the fullscreen setting, unless they are lent. */
+const clicksPass = () => (prefs.clickThrough || fullscreenThrough) && !clicksLent();
+/** Tells the window process each time clicksLent changes; it lifts its click-through lock meanwhile. */
+let lentTold = false;
+function stepLend() {
+  const on = clicksLent();
+  if (on === lentTold) return;
+  lentTold = on;
+  host?.lendClicks?.(on);
+}
 /** The transparency during full screen holds: its setting is on and a fullscreen window covers the display; the window process decides. */
 let fullscreenFaded = false;
 host?.onFullscreenFade?.((on) => { fullscreenFaded = on; refreshSlider(); });
@@ -459,6 +480,7 @@ function onOrder(m) {
     // the settings window's 「在桌面上隐藏」: the same as the menu's 「隐藏」
     case 'hide': host?.hide?.(); break;
     case 'type': openTyping(); break;
+    case 'throughPause': pauseHeld = m.on === true; stepLend(); break;
     case 'say': dropAsks(); queue.push({ kind: 'say', id: m.id, beats: m.beats, i: -1 }); holdRoam(20); break;
     case 'ask': dropAsks(); queue.push({ kind: 'ask', id: m.id, question: m.question, options: m.options || [], own: m.own !== false }); holdRoam(20); break;
     case 'confirm': dropAsks(); rushLines(); queue.push({ kind: 'ask', confirm: true, id: m.id, question: m.question, options: m.options, own: false }); holdRoam(20); break;
@@ -702,8 +724,24 @@ bubble.addEventListener('click', (e) => {
   bubble.classList.add('fading');
 });
 
+/**
+ * The place over the head is held by the look wheel or a slider, not folding away: the activity bubble, drawn in the
+ * same place, waits for it to go (stepStatus) and shows then if the activity is still going on.
+ */
+const headShown = () => headTaken(null);
+/**
+ * The look wheel or a slider over the head is in use: dragged, or the pointer still among the pet's controls. What Coo
+ * says, asks or shows waits meanwhile (stepDialog) and comes once the person is done, nothing dropped. One left
+ * showing with the pointer gone (a pinned slider) gives way to it as before. A confirmation waits for nothing: with
+ * one queued, the lines before it and then it take the place at once, so it is never held past its time.
+ */
+function headInUse() {
+  const el = HEAD.find((o) => !o.el.hidden && !leaving(o.el))?.el;
+  return !!el && (sliding() || amongControls(cursor.at, el));
+}
+
 function stepDialog(dt) {
-  if (!item && queue.length && at() && !at().busy) startItem(queue.shift());
+  if (!item && queue.length && at() && !at().busy && (!headInUse() || queue.some((q) => q.confirm))) startItem(queue.shift());
   const it = item;
   if (!it) return;
   if (it.kind === 'say') {
@@ -1561,8 +1599,8 @@ function statusParts(s) {
 }
 const statusLabel = (s) => Object.values(statusParts(s)).join('');
 function stepStatus() {
-  // Never replace dialogue with activity, including while a queued line waits for the body.
-  if (!prefs.statusBubble || listen.phase || item || queue.length) {
+  // Never replace dialogue with activity, including while a queued line waits for the body or for the place over the head.
+  if (!prefs.statusBubble || listen.phase || item || queue.length || headShown()) {
     if (bubble.classList.contains('status')) bubble.hidden = true;
     status.shown = null; status.fadeAt = null;
     return;
@@ -1652,6 +1690,17 @@ const ACTIONS = {
     tip: () => tipWithoutNote(t('action.hide')),
     run: () => host.hide(),
   },
+  // the tray's click-through as a switch: one click turns it on; while it is on, clicks reach this button only
+  // with the click-through pause key held. The World tells the tray.
+  through: {
+    available: () => !!host?.clickThrough,
+    keep: true,
+    icon: () => ICONS.through,
+    on: () => prefs.clickThrough,
+    state: () => t(prefs.clickThrough ? 'action.throughOn' : 'action.throughOff'),
+    tip: () => tipWithoutNote(ACTIONS.through.state()),
+    run: () => send({ t: 'prefs', clickThrough: !prefs.clickThrough }),
+  },
   size: {
     // hovering it shows the size slider for a moment (stepSlider); a click, or a tap where nothing hovers, pins it (pinSlider);
     // only on the desktop: a tab draws the body at one size
@@ -1709,11 +1758,18 @@ const ACTIONS = {
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
 
-/** One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether it waits for something not ready. */
+/** The markup each button's icon was last drawn with (drawAction). */
+const drawnIcons = new WeakMap();
+/**
+ * One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether
+ * it waits for something not ready. The icon is replaced only when it changes: a press whose icon was swapped before the
+ * release gets no click, and the size and transparency buttons are redrawn as their slider opens, which may be mid-press.
+ */
 function drawAction(b, id) {
   const a = ACTIONS[id], on = a.on?.();
   const badge = a.badge?.() ?? '';
-  b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
+  const ic = b.querySelector('.ic'), html = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
+  if (drawnIcons.get(ic) !== html) { ic.innerHTML = html; drawnIcons.set(ic, html); }
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
   b.classList.toggle('waiting', !!a.waiting?.());
@@ -1773,7 +1829,8 @@ function openMenu() {
     b.dataset.action = id;
     b.innerHTML = '<span class="ic"></span>';
     drawAction(b, id);
-    b.addEventListener('click', () => {
+    b.addEventListener('click', (e) => {
+      if (repeatClick(e)) return;
       sfx.tick();
       // as the button was clicked: running it may change whether it keeps the menu open (computer use)
       const keep = a.keep;
@@ -1880,6 +1937,12 @@ function closeMenu() {
   toolsUntil = 0;
 }
 
+/**
+ * The second click of a double click on an action button, which does nothing: a quick second press would undo the
+ * first at once (unpinning the slider just pinned, switching a sound back), as a hand that clicks twice by habit does.
+ */
+const repeatClick = (e) => e.detail > 1;
+
 /** Redraws whatever shows an action: the open menu's tiles and the hover buttons. */
 function refreshButtons() {
   for (const b of menu.querySelectorAll('.m-tile')) drawAction(b, b.dataset.action);
@@ -1909,7 +1972,7 @@ function renderTools() {
       b.type = 'button'; b.className = 'tool'; b.dataset.action = id;
       b.innerHTML = '<span class="ic"></span>';
       if (id === 'voice') wireVoiceTool(b);
-      else b.addEventListener('click', () => { sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
+      else b.addEventListener('click', (e) => { if (repeatClick(e)) return; sfx.tick(); if (!ACTIONS[id].keep) toolsUntil = 0; ACTIONS[id].run(); refreshButtons(); });
       tools.appendChild(b);
     }
     stagger(tools);
@@ -2194,7 +2257,8 @@ function stepWheel() {
   // a bubble over the pet (the typing box, a reply, a question) takes the wheel's place until it closes
   if (!bubble.hidden && !bubble.classList.contains('status')) { if (!wheel.hidden) closeWheel(); return; }
   if (amongControls(p, wheel)) wheelState.until = T + WHEEL_LINGER;
-  if (dress && wheel.hidden && !wheelState.empty && !clicksPass()) void openWheel();
+  // a pinned slider keeps the place over the head while the pointer crosses the dress button
+  if (dress && wheel.hidden && !wheelState.empty && !clicksPass() && !pinned) void openWheel();
   if (!wheel.hidden && T > wheelState.until) closeWheel();
 }
 // the mouse wheel turns the row while it shows, over the row or over a dress button
@@ -2219,8 +2283,9 @@ const SLIDER_SEND_MS = 120;
 const FADE = { min: 0, soft: 95, max: 95, step: 5 };
 /**
  * The slider a click on its button pinned, `size` or `fade`, or null. It stays until that button is clicked again, the
- * pointer goes down anywhere else, the window loses focus (a click in another program), Escape, or the menu, the look
- * wheel or a bubble takes the place.
+ * other slider's button is clicked, the pointer goes down anywhere else, the window loses focus (a click in another
+ * program), Escape, or the menu or a bubble the person opened takes the place. Hovering the other slider's button or a
+ * dress button meanwhile opens nothing.
  */
 let pinned = null;
 /** Until when the slider waits on; per kind, the send due while it moves; the wheel's travel toward a step. */
@@ -2345,11 +2410,9 @@ function stepSlider() {
   // a bubble over the pet (the typing box, a reply, a question) takes the slider's place until it closes; with every
   // click passing through the window it could not be used
   if ((!bubble.hidden && !bubble.classList.contains('status')) || clicksPass()) { pinSlider(null); closeSlider(); return; }
-  // over another kind's button, its slider takes the place, unless the one there is held
-  if (over && over !== shownSlider() && !sliding()) {
-    if (pinned && pinned !== over) pinSlider(null);
-    openSlider(over);
-  }
+  // over another kind's button, its slider takes the place, unless the one there is held or pinned: a pinned slider
+  // stays while the pointer crosses the other buttons, and gives way only to a click on another
+  if (over && over !== shownSlider() && !sliding() && !pinned) openSlider(over);
   // decided after opening: the slider just opened waits on as the pointer rests on its button
   const shown = shownSlider();
   if (sliding() || pinned || amongControls(p, shown && SLIDERS[shown].el)) sliderState.until = T + SLIDER_LINGER;
@@ -2374,14 +2437,11 @@ document.addEventListener('wheel', (e) => {
 const fadeKey = () => (fullscreenFaded ? 'fullscreenFade' : 'fade');
 let opacityShown = 1;
 /**
- * The body and its bubbles at the transparency on screen (pet.css --pet-opacity), opaque while the person deals with
- * Coo: the typing box, a question, a dialog or a confirmation open, or the body held. The transparency slider showing
- * keeps the value it sets in view. A tab draws the body opaque.
+ * The body at the transparency on screen (pet.css --pet-opacity), whatever it does: talking, asking, held or with the
+ * typing box open. The bubbles and the controls never take it. A tab draws the body opaque.
  */
 function stepFade() {
-  const showing = shownSlider() === 'fade';
-  const engaged = (!!item && item.kind !== 'say') || !!at()?.pressing;
-  const o = !host || (engaged && !showing) ? 1 : 1 - prefs[fadeKey()] / 100;
+  const o = !host ? 1 : 1 - prefs[fadeKey()] / 100;
   if (o === opacityShown) return;
   opacityShown = o;
   document.documentElement.style.setProperty('--pet-opacity', String(o));
@@ -2898,6 +2958,7 @@ function frame(steps, now, last) {
       stepWheel();
       stepSlider();
       stepFade();
+      stepLend();
       layout(dt);
       stepInputShape();
       // the frame's own time, so the layer shows frames as far apart as they were drawn

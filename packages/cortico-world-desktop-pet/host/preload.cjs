@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('petHost', {
   onFullscreenFade: (cb) => ipcRenderer.on('pet:fullscreenFade', (_e, on) => cb(!!on)),
   /** Whether every click passes through the window (the tray's "click through"); the window process enforces it. */
   clickThrough: (on) => ipcRenderer.send('pet:clickThrough', !!on),
+  /** Whether clicks reach the page despite click-through right now: the click-through pause key held, or the person dealing with the pet. */
+  lendClicks: (on) => ipcRenderer.send('pet:lendClicks', !!on),
   openDress: () => ipcRenderer.send('pet:openDress'),
   /** The app language the page shows, for the window process's own words (the tray menu). */
   setLanguage: (code) => ipcRenderer.send('pet:language', String(code)),

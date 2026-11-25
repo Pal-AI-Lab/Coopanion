@@ -27,9 +27,10 @@
  * picks (a list, a map) `/api/config` cannot write; they are saved through the pet panel's
  * `setWakeKinds` and `setSelfAdjustCustom`, which set the mode to `custom` in the same write.
  *
- * 「打字键」 (`typeKey`) is read from the same state and saved through the pet panel's `setTypeKey`; its
- * keys are set as the talk key's on the 语音输入 page (key-capture.ts), and how they are pressed is
- * picked beside them. The state names the keys in the app language and says why they cannot be read.
+ * 「打字键」 (`typeKey`) and 「暂停穿透键」 (`throughPauseKey`) are read from the same state and saved through the pet
+ * panel's `setTypeKey` and `setThroughPauseKey`; their keys are set as the talk key's on the 语音输入 page
+ * (key-capture.ts), and how they are pressed is picked beside them. The state names the keys in the app
+ * language and says why they cannot be read.
  */
 
 import { actionProblem } from '../../base/ui/problem.ts';
@@ -114,18 +115,19 @@ const SELF_MODES = ['off', 'default', 'any', 'custom'] as const;
 const SELF_KEYS = ['figure', 'scheme', 'roam', 'snoreSeconds', 'sound', 'scale', 'bubbleSize', 'fontSize', 'theme', 'hoverButtons', 'user'] as const;
 const SELF_DEFAULT: readonly string[] = ['figure', 'scheme', 'roam', 'snoreSeconds'];
 
-/** What the pet panel's state says of the two rows and of the typing key. */
+/** What the pet panel's state says of the two rows and of the typing and click-through pause keys. */
 interface HabitState {
   wake?: { wakeOn: string; wakeKinds: string[] };
   selfAdjust?: { mode: string; custom: Record<string, boolean> };
-  typeKey?: TypeKeyState;
+  typeKey?: KeyState;
+  throughPauseKey?: KeyState;
 }
 type Habits = Required<Pick<HabitState, 'wake' | 'selfAdjust'>>;
-interface TypeKeyState { enabled: boolean; hotkey: string; keyLabel: string; problem: string | null }
+interface KeyState { enabled: boolean; hotkey: string; keyLabel: string; problem: string | null }
 
 /** The pet's actions in the menu's order (the World's PET_ACTIONS), with the icon each shows. */
 const ACTIONS: ReadonlyArray<[id: string, icon: string]> = [
-  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['size', 'resize'], ['fade', 'fade'], ['dress', 'shirt'], ['cua', 'computer'], ['worlds', 'boxes'],
+  ['chat', 'chat'], ['voice', 'mic'], ['roam', 'roam_calm'], ['theme', 'moon'], ['sound', 'sound'], ['hide', 'eyeOff'], ['through', 'through'], ['size', 'resize'], ['fade', 'fade'], ['dress', 'shirt'], ['cua', 'computer'], ['worlds', 'boxes'],
 ];
 /** Kinds of sound, each a switch under `worlds.desktop-pet.sounds.<kind>`: the kinds the pet page mutes by. */
 const SOUND_KINDS = Object.keys(PAGE_SOUND_KINDS);
@@ -382,50 +384,60 @@ async function mount(ctx: PageContext): Promise<void> {
       void callPet('setSelfAdjustCustom', [custom], selfMode.el);
     });
   }
-  // 打字键: the switch, and while it is on the keys, a button to set others and how they are pressed
-  let typeKey: TypeKeyState = { enabled: false, hotkey: '', keyLabel: '', problem: null };
-  const typeSwitch = ui.checkbox(S.typeKey, { onChange: (on) => void callPet('setTypeKey', [{ enabled: on }], typeSwitch.el) });
-  const typeKeyName = ui.h('span', 'companion-rangeval');
-  const typeKeyBtn = ui.button(S.typeKeyChange, { size: 'sm' });
-  const typePress = ui.select({ onChange: (v) => void callPet('setTypeKey', [{ hotkey: withTaps(splitTaps(typeKey.hotkey).combo, Number(v)) }], typePress) });
-  const typeKeyBox = ui.h('div', 'companion-rangebox');
-  typeKeyBox.append(typeKeyName, typeKeyBtn, typePress);
-  const typeBox = ui.h('div', 'companion-switchbox');
-  typeBox.append(typeSwitch.el, typeKeyBox);
-  const typeHint = ui.h('p', 'home-note');
-  let capture: { stop(): void } | null = null;
-  typeKeyBtn.addEventListener('click', () => {
-    if (capture) { capture.stop(); return; }
-    typeKeyName.textContent = '…';
-    typeKeyBtn.textContent = S.popupCancel;
-    typeHint.textContent = S.typeKeyCapture;
-    typeHint.classList.remove('bad');
-    capture = captureKey(window, (combo) => {
-      capture = null;
-      typeKeyBtn.textContent = S.typeKeyChange;
-      // how the keys are pressed stays as picked
-      if (combo) void callPet('setTypeKey', [{ hotkey: withTaps(combo, splitTaps(typeKey.hotkey).taps) }], typeKeyBtn);
-      else renderTypeKey();
-    });
-  }, { signal });
-  signal.addEventListener('abort', () => capture?.stop());
-  function renderTypeKey(): void {
-    typeSwitch.setChecked(typeKey.enabled);
-    typeKeyBox.hidden = !typeKey.enabled;
-    if (capture) return;
-    typeKeyName.textContent = typeKey.keyLabel;
-    // a key set to three presses in config.json keeps its choice; the row offers two or one
-    const { taps } = splitTaps(typeKey.hotkey);
-    const presses = PRESSES.filter((n) => n < 3 || n === taps);
-    if (typePress.dataset.list !== presses.join()) {
-      typePress.dataset.list = presses.join();
-      typePress.replaceChildren(...presses.map((n) => { const o = ui.h('option', null, S.typeKeyPresses[n] ?? String(n)); o.value = String(n); return o; }));
+  /**
+   * A hotkey row (打字键, 暂停穿透键): the switch, and while it is on the keys, a button to set others and how they are
+   * pressed. `method` is the pet panel's setter; `render` takes the state the panel gives back.
+   */
+  function keyRow(method: string, text: { on: string; hint: string; capture: string; presses: Record<number, string> }) {
+    let state: KeyState = { enabled: false, hotkey: '', keyLabel: '', problem: null };
+    const set = (patch: Partial<Pick<KeyState, 'enabled' | 'hotkey'>>, anchor: HTMLElement) => void callPet(method, [patch], anchor);
+    const toggle = ui.checkbox(text.on, { onChange: (on) => set({ enabled: on }, toggle.el) });
+    const name = ui.h('span', 'companion-rangeval');
+    const change = ui.button(S.typeKeyChange, { size: 'sm' });
+    const press = ui.select({ onChange: (v) => set({ hotkey: withTaps(splitTaps(state.hotkey).combo, Number(v)) }, press) });
+    const keys = ui.h('div', 'companion-rangebox');
+    keys.append(name, change, press);
+    const box = ui.h('div', 'companion-switchbox');
+    box.append(toggle.el, keys);
+    const hint = ui.h('p', 'home-note');
+    let capture: { stop(): void } | null = null;
+    change.addEventListener('click', () => {
+      if (capture) { capture.stop(); return; }
+      name.textContent = '…';
+      change.textContent = S.popupCancel;
+      hint.textContent = text.capture;
+      hint.classList.remove('bad');
+      capture = captureKey(window, (combo) => {
+        capture = null;
+        change.textContent = S.typeKeyChange;
+        // how the keys are pressed stays as picked
+        if (combo) set({ hotkey: withTaps(combo, splitTaps(state.hotkey).taps) }, change);
+        else render(state);
+      });
+    }, { signal });
+    signal.addEventListener('abort', () => capture?.stop());
+    function render(next: KeyState): void {
+      state = next;
+      toggle.setChecked(state.enabled);
+      keys.hidden = !state.enabled;
+      if (capture) return;
+      name.textContent = state.keyLabel;
+      // a key set to three presses in config.json keeps its choice; the row offers two or one
+      const { taps } = splitTaps(state.hotkey);
+      const presses = PRESSES.filter((n) => n < 3 || n === taps);
+      if (press.dataset.list !== presses.join()) {
+        press.dataset.list = presses.join();
+        press.replaceChildren(...presses.map((n) => { const o = ui.h('option', null, text.presses[n] ?? String(n)); o.value = String(n); return o; }));
+      }
+      if (document.activeElement !== press) press.value = String(taps);
+      const problem = state.enabled ? state.problem : null;
+      hint.textContent = problem ?? text.hint;
+      hint.classList.toggle('bad', !!problem);
     }
-    if (document.activeElement !== typePress) typePress.value = String(taps);
-    const problem = typeKey.enabled ? typeKey.problem : null;
-    typeHint.textContent = problem ?? S.typeKeyHint;
-    typeHint.classList.toggle('bad', !!problem);
+    return { box, hint, render };
   }
+  const typeKey = keyRow('setTypeKey', { on: S.typeKey, hint: S.typeKeyHint, capture: S.typeKeyCapture, presses: S.typeKeyPresses });
+  const throughPauseKey = keyRow('setThroughPauseKey', { on: S.throughPauseKey, hint: S.throughPauseKeyHint, capture: S.throughPauseKeyCapture, presses: S.throughPauseKeyPresses });
   const stats = ui.checkbox(S.stats, { onChange: (on) => void save(STATS_KEY, on, STATS_GROUP, stats.el) });
   const statsDoc = ui.h('a', 'home-link companion-statsdoc', S.statsDoc);
   statsDoc.href = STATS_DOC;
@@ -508,7 +520,8 @@ async function mount(ctx: PageContext): Promise<void> {
     row(S.self, selfMode.el, selfHint),
     row(S.hover, hoverBox, S.hoverHint(MAX_HOVER)),
     row(S.dblclickLabel, dblclick.el),
-    row(S.typeKeyLabel, typeBox, typeHint),
+    row(S.typeKeyLabel, typeKey.box, typeKey.hint),
+    row(S.throughPauseKeyLabel, throughPauseKey.box, throughPauseKey.hint),
   );
   // 气泡: how Coo's bubbles and yours look and how long they stay, with a sample at the end
   const bubbles = ui.sheet({ title: S.groupBubbles });
@@ -700,7 +713,8 @@ async function mount(ctx: PageContext): Promise<void> {
     }
   };
   function takeHabits(state: HabitState | null | undefined): void {
-    if (state?.typeKey) { typeKey = state.typeKey; renderTypeKey(); }
+    if (state?.typeKey) typeKey.render(state.typeKey);
+    if (state?.throughPauseKey) throughPauseKey.render(state.throughPauseKey);
     if (!state?.wake || !state.selfAdjust) return;
     habit = { wake: state.wake, selfAdjust: state.selfAdjust };
     renderHabits();
