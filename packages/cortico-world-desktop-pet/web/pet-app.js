@@ -1739,11 +1739,18 @@ const ACTIONS = {
 };
 const available = (id) => ACTIONS[id] && (ACTIONS[id].available?.() ?? true);
 
-/** One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether it waits for something not ready. */
+/** The markup each button's icon was last drawn with (drawAction). */
+const drawnIcons = new WeakMap();
+/**
+ * One action as a button, as a hover button and in the menu alike: its icon, the badge, whether a switch is on, and whether
+ * it waits for something not ready. The icon is replaced only when it changes: a press whose icon was swapped before the
+ * release gets no click, and the size and transparency buttons are redrawn as their slider opens, which may be mid-press.
+ */
 function drawAction(b, id) {
   const a = ACTIONS[id], on = a.on?.();
   const badge = a.badge?.() ?? '';
-  b.querySelector('.ic').innerHTML = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
+  const ic = b.querySelector('.ic'), html = a.icon() + (badge ? `<b class="badge">${badge}</b>` : '');
+  if (drawnIcons.get(ic) !== html) { ic.innerHTML = html; drawnIcons.set(ic, html); }
   b.classList.toggle('on', on === true);
   b.classList.toggle('off', on === false);
   b.classList.toggle('waiting', !!a.waiting?.());

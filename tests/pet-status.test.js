@@ -980,6 +980,22 @@ describe('click-through paused', () => {
   });
 });
 
+describe('drawing the action buttons', () => {
+  it('keeps an unchanged icon, so a press on it still clicks when the button is redrawn before the release', async () => {
+    const p = page({ host: { clickThrough() {} } });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.sockets[0].onopen();
+    p.onOrder({ t: 'prefs', hoverButtons: ['size', 'sound'], sound: true });
+    const icon = (id) => p.doc.querySelector(`.tools [data-action="${id}"] .ic svg`);
+    const size = icon('size'), sound = icon('sound');
+    expect(size).not.toBeNull();
+    // the size slider opening redraws the button, as other prefs from the World redraw them all
+    p.onOrder({ t: 'prefs', scale: 1.2, sound: false });
+    expect(icon('size')).toBe(size);
+    expect(icon('sound')).not.toBe(sound);
+  });
+});
+
 describe('the right-click menu', () => {
   const tiles = (p) => [...p.doc.querySelectorAll('.menu .m-tile')].map((b) => b.dataset.action);
 
