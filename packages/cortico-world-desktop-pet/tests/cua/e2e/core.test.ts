@@ -70,6 +70,6 @@ describe.runIf(process.platform === 'win32')('CUA through Core', () => {
     await expect.poll(() => model.turns.length, { timeout: 20_000 }).toBeGreaterThanOrEqual(3);
     const results = outputs(model.turns[2]).map(outputText);
     expect(results.some((t) => t.includes('已在') && t.includes('左键单击'))).toBe(true);
-    expect(results.some((t) => t.includes('已输入 11 个字符'))).toBe(true);
+    expect(results.some((t) => t.includes('已发送 11 个字符'))).toBe(true);
   });
 });

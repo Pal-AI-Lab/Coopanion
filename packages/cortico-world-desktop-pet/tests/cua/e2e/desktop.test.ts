@@ -64,7 +64,7 @@ describe.runIf(process.platform === 'win32')('desktop', () => {
   it('clicks into the text box, types mixed-script text and submits with the button', async () => {
     expect((await call('pet_cua_click', { ...at(ready.box), screenshot: false })).failed).toBeUndefined();
     const typed = await call('pet_cua_type', { text: 'hello 桌宠 123', screenshot: false });
-    expect(typed.text).toContain('已输入 12 个字符');
+    expect(typed.text).toContain('已发送 12 个字符');
     const clicked = await call('pet_cua_click', at(ready.button));
     expect(clicked.blobs?.length).toBe(1);
     expect((await target.next((e) => e.event === 'submit')).text).toBe('hello 桌宠 123');

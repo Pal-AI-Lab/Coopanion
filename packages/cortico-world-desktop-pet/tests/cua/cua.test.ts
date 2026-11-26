@@ -256,7 +256,7 @@ describe('computer use without the engine', () => {
 
     it('pet_cua_type sends the engine a cancel on abort and reports how much of the text went out', async () => {
       const out = await callAborted(interruptWorld(), 'pet_cua_type', { text: 'x'.repeat(40) });
-      expect(out.text).toContain('只输入了 16/40 个字符:收到打断');
+      expect(out.text).toContain('已发送 16/40 个字符:收到打断');
       expect(out.blobs).toBeUndefined();
     });
   });

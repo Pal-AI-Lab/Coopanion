@@ -21,8 +21,8 @@
 import type { Button, ChildToMain, EngineRequest, HoldResult, InputResult, MainToChild, ScreenInfo, ScreenshotResult, Target, TypeResult, WindowEntry, Yield, ZoomResult } from './engine-ipc.ts';
 import type { KeyCode } from './engine/keys.ts';
 // the operating system's own calls: Win32 on Windows, CoreGraphics and AppleScript on macOS, X11 on Linux
-const os: typeof import('./engine/win32.ts') = process.platform === 'darwin' ? await import('./engine/darwin.ts')
-  : process.platform === 'linux' ? await import('./engine/linux.ts') : await import('./engine/win32.ts');
+const windows = process.platform === 'win32' ? await import('./engine/win32.ts') : undefined;
+const os = windows ?? (process.platform === 'darwin' ? await import('./engine/darwin.ts') : await import('./engine/linux.ts'));
 import { downscale, drawCursor, encodeJpeg, fit } from './engine/image.ts';
 import { EngineFailure } from './engine/fail.ts';
 import { crop, displayAt, layoutOf, ordered, physicalSize, toLocal, toNative, type NativeDisplay } from './engine/display.ts';
@@ -189,28 +189,38 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
       }
     }); }
     case 'type': {
-      const w = await waitIdle(req.yield, cancelled, userActivity);
-      if (w.yielded || w.cancelled) return { ...info(), ...w, typed: 0, stoppedBy: null } satisfies TypeResult;
-      const graphemes = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(req.text)].map((s) => s.segment);
-      let typed = 0;
-      let stoppedBy: TypeResult['stoppedBy'] = null;
-      for (let i = 0; i < graphemes.length; i += 16) {
-        if (i > 0 && cancelled()) { stoppedBy = 'cancel'; break; }
-        if (i > 0) {
-          const input = userActivity();
-          if (input.idleMs < 300) {
-            recordActivity(w.activity, input, 300);
-            stoppedBy = 'user';
-            break;
+      const writer = await windows?.imeTextWriter(req.text, cancelled);
+      try {
+        const w = await waitIdle(req.yield, cancelled, userActivity);
+        if (w.yielded || w.cancelled) return { ...info(), ...w, typed: 0, stoppedBy: null } satisfies TypeResult;
+        const graphemes = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(req.text)].map((s) => s.segment);
+        let typed = 0;
+        let stoppedBy: TypeResult['stoppedBy'] = null;
+        for (let i = 0; i < graphemes.length; i += 16) {
+          if (i > 0 && cancelled()) { stoppedBy = 'cancel'; break; }
+          if (i > 0) {
+            const input = userActivity();
+            if (input.idleMs < 300) {
+              recordActivity(w.activity, input, 300);
+              stoppedBy = 'user';
+              break;
+            }
           }
+          const chunk = graphemes.slice(i, i + 16).join('');
+          const count = [...chunk].length;
+          if (writer) {
+            const sent = writer.write(chunk);
+            typed += sent;
+            if (sent < count) { stoppedBy = 'user'; break; }
+          } else {
+            os.typeUnicode(chunk);
+            typed += count;
+            markOwn();
+          }
+          await sleep(req.chunkDelayMs);
         }
-        const chunk = graphemes.slice(i, i + 16).join('');
-        os.typeUnicode(chunk);
-        typed += [...chunk].length;
-        markOwn();
-        await sleep(req.chunkDelayMs);
-      }
-      return { ...info(), ...w, typed, stoppedBy } satisfies TypeResult;
+        return { ...info(), ...w, typed, stoppedBy } satisfies TypeResult;
+      } finally { writer?.close(); }
     }
     case 'key': return withInput(req.yield, cancelled, async () => {
       for (const chord of req.chords) {

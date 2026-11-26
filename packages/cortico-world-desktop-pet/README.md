@@ -489,7 +489,7 @@ bot 还有 `pet_cua_open_settings`,在使用者同意后把设置窗口打开到
 | `pet_cua_mouse_down(x, y, button)` | 在某处按下左/右/中键不松开,直到 `pet_cua_mouse_up` 或这一轮结束;按着时 `pet_cua_move` 就是拖动 |
 | `pet_cua_mouse_up(button)` | 在指针所在处松开鼠标键 |
 | `pet_cua_scroll(x, y, down, right)` | 在某处转滚轮,单位是格 |
-| `pet_cua_type(text)` | 按 Unicode 字符打字,与键盘布局和输入法状态无关;`\n` 按回车 |
+| `pet_cua_type(text)` | 向当前控件发送 Unicode 文字，`\n` 按回车。回执报告已发送的字符数，实际内容以输入框为准 |
 | `pet_cua_key(keys, hold)` | `"ctrl+s"`、`"alt+f4"`、`"ctrl+a delete"`:`+` 同时按,空格分先后;带 `hold` 时只能是一个键或一个组合键,按住这么多秒再松开,最多 30 秒(和 `pet_cua_wait` 的上限相同) |
 | `pet_cua_windows` | 可见顶层窗口的标题、在哪块显示器(在最近一张截图那块上的给出截图坐标)、是否最小化、前台 |
 | `pet_cua_focus(window)` | 按句柄或标题片段切到前台,最小化的先还原;窗口在另一块显示器上时,附带的截图截那块 |
@@ -549,7 +549,7 @@ Linux 缺少 MIT-SCREEN-SAVER 扩展或系统输入查询失败时,最后输入�
 |---|---|
 | 等使用者回答能不能用电脑 | 不执行;问题仍然开着,回答对这一轮之后的调用有效 |
 | 等使用者停手 | 不发出任何输入,回执报告已等了多久 |
-| `pet_cua_type` 打字途中 | 停在两段之间,回执报告打出了几个字符 |
+| `pet_cua_type` 打字途中 | 停止发送，继续前先核对输入框末尾 |
 | `pet_cua_key` 按住按键途中 | 立即松开,回执报告按住了几秒 |
 | 点击、移动、拖动、按下或松开鼠标键、滚动、按键序列、切窗口 | 已开始的输入发完(拖动会松开左键),之后不等 `settleMs`、不附截图 |
 | `pet_cua_wait` 等待中 | 立即结束,回执报告等了几秒,不截图 |

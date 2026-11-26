@@ -10,6 +10,7 @@
  */
 import koffi from 'koffi';
 import { EngineFailure } from './fail.ts';
+import { isTerminal } from '../terminal.ts';
 import type { NativeDisplay } from './display.ts';
 import type { ForegroundWindow } from './foreground.ts';
 
@@ -66,6 +67,15 @@ const QueryFullProcessImageNameW = kernel32.func('bool __stdcall QueryFullProces
 const CloseHandle = kernel32.func('bool __stdcall CloseHandle(HANDLE handle)');
 const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 const GetForegroundWindow = user32.func('HWND __stdcall GetForegroundWindow()');
+const GUITHREADINFO = koffi.struct('GUITHREADINFO', {
+  cbSize: 'uint32_t', flags: 'uint32_t', hwndActive: 'HWND', hwndFocus: 'HWND', hwndCapture: 'HWND',
+  hwndMenuOwner: 'HWND', hwndMoveSize: 'HWND', hwndCaret: 'HWND', rcCaret: RECT,
+});
+const GetGUIThreadInfo = user32.func('bool __stdcall GetGUIThreadInfo(uint32_t thread, _Inout_ GUITHREADINFO *info)');
+const GetKeyboardLayout = user32.func('uintptr_t __stdcall GetKeyboardLayout(uint32_t thread)');
+const IsWindowUnicode = user32.func('bool __stdcall IsWindowUnicode(HWND hwnd)');
+const ImmGetDefaultIMEWnd = koffi.load('imm32.dll').func('HWND __stdcall ImmGetDefaultIMEWnd(HWND hwnd)');
+const SendMessageTimeoutW = user32.func('intptr_t __stdcall SendMessageTimeoutW(HWND hwnd, uint32_t msg, uintptr_t wparam, intptr_t lparam, uint32_t flags, uint32_t timeout, _Out_ uintptr_t *result)');
 const SetForegroundWindow = user32.func('bool __stdcall SetForegroundWindow(HWND hwnd)');
 const ShowWindow = user32.func('bool __stdcall ShowWindow(HWND hwnd, int cmd)');
 const BringWindowToTop = user32.func('bool __stdcall BringWindowToTop(HWND hwnd)');
@@ -79,6 +89,8 @@ const INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
 const MOUSEEVENTF = { LEFTDOWN: 0x2, LEFTUP: 0x4, RIGHTDOWN: 0x8, RIGHTUP: 0x10, MIDDLEDOWN: 0x20, MIDDLEUP: 0x40, WHEEL: 0x800, HWHEEL: 0x1000 };
 const MONITORINFOF_PRIMARY = 1;
 const KEYEVENTF = { EXTENDEDKEY: 0x1, KEYUP: 0x2, UNICODE: 0x4 };
+const WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_CHAR = 0x0102, WM_IME_CHAR = 0x0286;
+const SMTO_ABORTIFHUNG = 2, SMTO_ERRORONEXIT = 0x20;
 const GWL_EXSTYLE = -20, WS_EX_TOOLWINDOW = 0x80;
 const DWMWA_EXTENDED_FRAME_BOUNDS = 9, DWMWA_CLOAKED = 14;
 const SW_RESTORE = 9;
@@ -192,7 +204,7 @@ export function keysUp(vks: Array<{ vk: number; extended: boolean }>): void {
   send([...vks].reverse().map((k) => key(k.vk, true, k.extended)));
 }
 
-/** Types text as Unicode key events, independent of the keyboard layout and IME state. */
+/** Unicode keyboard packets for applications that consume key events. */
 export function typeUnicode(text: string): void {
   const inputs = [];
   for (let i = 0; i < text.length; i++) {
@@ -206,6 +218,81 @@ export function typeUnicode(text: string): void {
     inputs.push({ type: INPUT_KEYBOARD, u: { ki: { wVk: 0, wScan: unit, dwFlags: KEYEVENTF.UNICODE | KEYEVENTF.KEYUP, time: 0, dwExtraInfo: 0 } } });
   }
   if (inputs.length) send(inputs);
+}
+
+/** A focused Unicode control can request character messages and handle Enter itself. */
+export async function imeTextWriter(text: string, cancelled: () => boolean) {
+  // IMEs can defer non-ASCII punctuation delivered in Unicode keyboard packets.
+  if (!/(?=[^\x00-\x7f])\p{P}/u.test(text)) return;
+  const foreground = GetForegroundWindow();
+  if (!foreground) return;
+  const pid = [0];
+  const thread = GetWindowThreadProcessId(foreground, pid);
+  if (!thread) return;
+  const layout = GetKeyboardLayout(thread);
+  const app = processName(pid[0]);
+  if (!app || isTerminal(app)) return;
+
+  const focus = () => {
+    const gui = { cbSize: koffi.sizeof(GUITHREADINFO), flags: 0, hwndActive: null, hwndFocus: null };
+    if (!GetGUIThreadInfo(0, gui) || !gui.hwndFocus || !gui.hwndActive
+      || koffi.address(gui.hwndActive) !== koffi.address(foreground) || (gui.flags & 0x1e) !== 0) return null;
+    return gui.hwndFocus;
+  };
+  const window = focus();
+  if (!window || !IsWindowUnicode(window)) return;
+  const ime = ImmGetDefaultIMEWnd(window);
+  const open = [0];
+  // WM_IME_CONTROL / IMC_GETOPENSTATUS reads the mode of the foreground control.
+  if (!ime || !SendMessageTimeoutW(ime, 0x0283, 5, 0, SMTO_ABORTIFHUNG, 250, open) || !open[0]) return;
+
+  const sameControl = () => {
+    const current = focus();
+    return current && koffi.address(current) === koffi.address(window);
+  };
+  const code = [0];
+  const wantsChars = SendMessageTimeoutW(window, 0x0087, 0, 0, SMTO_ABORTIFHUNG, 250, code) && (code[0] & 0x80);
+  let selection: import('./win32-text-selection.ts').FocusedSelection | undefined;
+  if (wantsChars) {
+    // A dialog may consume Enter before it reaches its edit control.
+    if (text.includes('\n') && (!SendMessageTimeoutW(window, 0x0087, 13, 0, SMTO_ABORTIFHUNG, 250, code) || !(code[0] & 4))) return;
+  } else {
+    const { writableSelection } = await import('./win32-text-selection.ts');
+    // A provider may initialize its accessibility tree on the first focus query.
+    for (const delay of [0, 60, 120, 240]) {
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      if (cancelled() || !sameControl()) return { write: () => 0, close: () => {} };
+      selection = writableSelection(pid[0]);
+      if (selection) break;
+    }
+    if (!selection) {
+      if (!sameControl()) return { write: () => 0, close: () => {} };
+      return;
+    }
+  }
+  // 仅向拥有焦点 HWND 的编辑器发送已确认的 IME 字符。虚拟子控件由宿主分派 WM_CHAR。
+  const charMessage = selection?.nativeWindow && koffi.address(selection.nativeWindow) === koffi.address(window)
+    ? WM_IME_CHAR : WM_CHAR;
+  const write = (msg: number, value: number, flags: number) => {
+    if (!sameControl()) return false;
+    if (!SendMessageTimeoutW(window, msg, value, flags, SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 250, null)) throw new EngineFailure('winTextDelivery');
+    return true;
+  };
+  const writeChunk = (chunk: string) => {
+    if (GetKeyboardLayout(thread) !== layout || (selection && !selection.focused())) return 0;
+    let typed = 0;
+    for (const char of chunk) {
+      if (char === '\n') {
+        // Enter carries scan code 0x1c. Chromium needs the key and character messages together.
+        if (!write(WM_KEYDOWN, 13, 0x001c0001) || !write(charMessage, 13, 0x001c0001) || !write(WM_KEYUP, 13, 0xc01c0001)) break;
+      } else if (char !== '\r') {
+        for (let i = 0; i < char.length; i++) if (!write(charMessage, char.charCodeAt(i), 1)) return typed;
+      }
+      typed++;
+    }
+    return typed;
+  };
+  return { write: writeChunk, close: () => selection?.close() };
 }
 
 export interface WindowInfo {

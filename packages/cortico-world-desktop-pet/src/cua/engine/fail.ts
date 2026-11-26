@@ -5,7 +5,7 @@
 export type EngineErrorCode =
   | 'macScreenPermission' | 'macInputPermission' | 'macNoKey'
   | 'x11Display' | 'linuxNoScreenshot' | 'linuxPixelFormat' | 'linuxNoKey' | 'linuxNoXdotool'
-  | 'winBitBlt' | 'winGetDIBits' | 'winSendInput' | 'winSetCursorPos'
+  | 'winBitBlt' | 'winGetDIBits' | 'winSendInput' | 'winSetCursorPos' | 'winTextDelivery'
   | 'layoutChanged' | 'noDisplay';
 
 export class EngineFailure extends Error {
