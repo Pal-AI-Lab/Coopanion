@@ -215,46 +215,10 @@ const askStranded = INSTALLED && !PET_HOST && DATA === BESIDE && restoreStranded
 // before anything asks Electron for a path: the single-instance lock and the profile live in userData
 app.setPath('userData', DATA);
 app.setPath('crashDumps', join(DATA, 'Crashpad'));
+// Chromium writes a dump for a process that dies only once the reporter is started; nothing is uploaded
+crashReporter.start({ uploadToServer: false });
 process.env.TEMP = process.env.TMP = process.env.TMPDIR = join(DATA, 'tmp');
 mkdirSync(process.env.TEMP, { recursive: true });
-
-/* ---------- crash dumps ----------
- * The crashDumps path above only says where dumps would go: Chromium's crashpad handler starts when
- * `crashReporter.start()` runs, and nothing here called it before, so the folder was never even created and a
- * renderer that broke left nothing behind — `render-process-gone` reports the exit code and the reason, never a
- * stack. With the handler running, every dead process (main, a renderer, a utility, the GPU) leaves a minidump
- * under `data\Crashpad\reports` that says which module and which frame ended it, which is what tells a fault of
- * the app apart from one a driver injected.
- *
- * Nothing is uploaded: `uploadToServer: false` keeps the dumps on this machine (`compress` and `rateLimit` off so
- * a burst of crashes keeps them all at full detail). It has to run before the first window and before the Core
- * child starts, or the processes already up get no handler. `COOPANION_CRASH_REPORTING=0` turns it off.
- */
-if (!/^(0|false|no|off)$/i.test((process.env.COOPANION_CRASH_REPORTING ?? '').trim())) {
-  const crashLog = join(DATA, 'logs', 'crash-reporter.log');
-  try {
-    mkdirSync(join(DATA, 'logs'), { recursive: true });
-    crashReporter.start({
-      productName: 'Coopanion',
-      companyName: 'Pal',
-      /* Unused while `uploadToServer` is false, but required by the API. */
-      submitURL: 'https://crash.invalid/coopanion',
-      uploadToServer: false,
-      compress: false,
-      rateLimit: false,
-      extra: {
-        channel: BUILD.channel ?? 'unknown',
-        version: app.getVersion(),
-        petHost: String(PET_HOST),
-        data: DATA,
-      },
-    });
-    appendFileSync(crashLog, `${new Date().toISOString()} crashReporter started (${app.getVersion()}, ${BUILD.channel ?? 'unknown'}), dumps in ${join(DATA, 'Crashpad')}\n`);
-  } catch (err) {
-    try { appendFileSync(crashLog, `${new Date().toISOString()} crashReporter did not start: ${err?.message ?? err}\n`); } catch { /* no log either: the app still runs */ }
-  }
-}
-
 
 /* ---------- pet window mode ---------- */
 if (PET_HOST) {
