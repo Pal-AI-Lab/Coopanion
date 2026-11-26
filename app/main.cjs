@@ -38,7 +38,7 @@
  * system's, handed to the Core as `COOPANION_SYSTEM_LANGUAGE`. The settings window's preload keeps the
  * console in the app language (`settings-preload.cjs`).
  */
-const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
+const { app, crashReporter, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron');
 const { spawn } = require('node:child_process');
 const http = require('node:http');
 const { Readable } = require('node:stream');
@@ -215,6 +215,8 @@ const askStranded = INSTALLED && !PET_HOST && DATA === BESIDE && restoreStranded
 // before anything asks Electron for a path: the single-instance lock and the profile live in userData
 app.setPath('userData', DATA);
 app.setPath('crashDumps', join(DATA, 'Crashpad'));
+// Chromium writes a dump for a process that dies only once the reporter is started; nothing is uploaded
+crashReporter.start({ uploadToServer: false });
 process.env.TEMP = process.env.TMP = process.env.TMPDIR = join(DATA, 'tmp');
 mkdirSync(process.env.TEMP, { recursive: true });
 
