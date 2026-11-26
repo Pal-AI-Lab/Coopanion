@@ -61,9 +61,8 @@ export type ActivityMotion = 'enter' | ActivityRange | null;
 /** `daily` 是请求带 `dailyTokenDays=ACTIVITY_CONTEXT_DAYS` 时 `/api/usage` 给的 `dailyTokens`。 */
 export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTokens[], range: ActivityRange, motion: ActivityMotion): void {
   const { ui, box, tip } = deps;
-  box.replaceChildren();
   if (!daily.length) {
-    box.appendChild(ui.placeholder(S.noCalls));
+    box.replaceChildren(ui.placeholder(S.noCalls));
     return;
   }
   const tokens = new Map(daily.map((p) => [p.day, p.tokens]));
@@ -177,7 +176,7 @@ export function renderActivity(deps: ActivityDeps, daily: readonly UsageDailyTok
   grid.addEventListener('mousemove', point);
   grid.addEventListener('mouseleave', () => { raise(null); tip.hide(); });
   wrap.append(grid, months, legend);
-  box.appendChild(wrap);
+  box.replaceChildren(wrap);
   if (!shifts.length) return;
   const gain = shifts.filter((s) => !s.dim).map((s) => s.col);
   const lose = shifts.filter((s) => s.dim).map((s) => s.col);
