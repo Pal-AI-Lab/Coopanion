@@ -107,13 +107,16 @@ it('lists usage by World under the names /api/worlds gives, ids for Worlds it no
   await vi.waitFor(() => expect(firstCells()).toEqual(['QQ chats qq', 'removed-world', S.unattributed]));
 });
 
-it('splits the time series by World under the names /api/worlds gives, never together with call purpose or model, and not for call counts', async () => {
+it('splits the time series by World under the names /api/worlds gives, with model but never with call purpose, and not for call counts', async () => {
   const accum = (calls, cost) => ({ calls, cost, promptTokens: 0, completionTokens: 0 });
   const group = (key, calls, cost) => ({ key, ...accum(calls, cost), cacheHitRate: null });
   usage = {
     ...aggregate, totals: group('total', 3, 3),
-    series: [{ bucket: '2026-11-01', ...accum(3, 3), byRole: {}, byModel: {}, byRoleModel: {}, byWorld: { qq: accum(2, 2) }, unattributed: accum(1, 1) }],
-    byWorld: [group('qq', 2, 2)], unattributed: group('unattributed', 1, 1),
+    series: [{
+      bucket: '2026-11-01', ...accum(3, 3), byRole: {}, byModel: { m: accum(3, 3) }, byRoleModel: {},
+      byWorld: { qq: accum(2, 2) }, unattributed: accum(1, 1), byWorldModel: { qq: { m: accum(2, 2) } }, unattributedByModel: { m: accum(1, 1) },
+    }],
+    byModel: [group('m', 3, 3)], byWorld: [group('qq', 2, 2)], unattributed: group('unattributed', 1, 1),
   };
   worlds = [{ id: 'qq', label: 'QQ chats' }];
   const { root } = mount();
@@ -125,14 +128,14 @@ it('splits the time series by World under the names /api/worlds gives, never tog
   role.click();
   model.click();
   world.click();
-  expect(pressed()).toEqual(['false', 'true', 'false']);
-  await vi.waitFor(() => expect(legend()).toEqual(['QQ chats', S.unattributed]));
+  expect(pressed()).toEqual(['false', 'true', 'true']);
+  await vi.waitFor(() => expect(legend()).toEqual(['QQ chats · m', `${S.unattributed} · m`]));
   button(S.cardCalls).click();
   expect(world.disabled).toBe(true);
-  expect(legend()).toEqual([]);
+  expect(legend()).toEqual(['m']);
   button(S.metricCost).click();
-  model.click();
-  expect(pressed()).toEqual(['false', 'false', 'true']);
+  role.click();
+  expect(pressed()).toEqual(['true', 'false', 'true']);
 });
 
 it('draws at most as many World colours as the palette has, folding the smallest into one labelled part whose value is their sum', async () => {
