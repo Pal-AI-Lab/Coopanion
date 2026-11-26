@@ -87,6 +87,8 @@
 .chart-legend:not(:empty) + .uchart { margin-top: 8px; }
 .legitem { display: inline-flex; align-items: center; gap: 6px; font: var(--text-detail)/1.4 var(--sans); color: var(--ink-soft); }
 .legsw { width: 11px; height: 11px; border-radius: 3px; }
+.u-tip .tt-sub { color: var(--ink-soft); }
+.u-tip .tt-sub .tt-l { padding-left: 8px; }
 /* 悬停柱子:其余柱子整组淡出，指着的这一列是叠在上层的一份副本，抬起并发光，指着的那一段最亮(chart.ts);
    柱子太细时不做动画，这一列后面铺一条底色。底色与副本都不在柱子的 SVG 里，移动时不重画柱子 */
 .uchart { position: relative; }

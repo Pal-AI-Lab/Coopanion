@@ -107,6 +107,47 @@ it('lists usage by World under the names /api/worlds gives, ids for Worlds it no
   await vi.waitFor(() => expect(firstCells()).toEqual(['QQ chats qq', 'removed-world', S.unattributed]));
 });
 
+it('splits the time series by World under the names /api/worlds gives, never together with call purpose or model, and not for call counts', async () => {
+  const accum = (calls, cost) => ({ calls, cost, promptTokens: 0, completionTokens: 0 });
+  const group = (key, calls, cost) => ({ key, ...accum(calls, cost), cacheHitRate: null });
+  usage = {
+    ...aggregate, totals: group('total', 3, 3),
+    series: [{ bucket: '2026-11-01', ...accum(3, 3), byRole: {}, byModel: {}, byRoleModel: {}, byWorld: { qq: accum(2, 2) }, unattributed: accum(1, 1) }],
+    byWorld: [group('qq', 2, 2)], unattributed: group('unattributed', 1, 1),
+  };
+  worlds = [{ id: 'qq', label: 'QQ chats' }];
+  const { root } = mount();
+  const button = (label) => [...root.querySelectorAll('button')].find((el) => el.textContent === label);
+  const [role, world, model] = [S.dimRole, S.dimWorld, S.dimModel].map(button);
+  const pressed = () => [role, world, model].map((el) => el.getAttribute('aria-pressed'));
+  const legend = () => [...root.querySelectorAll('.leglbl')].map((el) => el.textContent);
+  await vi.waitFor(() => expect(root.querySelector('.uchart svg')).not.toBeNull());
+  role.click();
+  model.click();
+  world.click();
+  expect(pressed()).toEqual(['false', 'true', 'false']);
+  await vi.waitFor(() => expect(legend()).toEqual(['QQ chats', S.unattributed]));
+  button(S.cardCalls).click();
+  expect(world.disabled).toBe(true);
+  expect(legend()).toEqual([]);
+  button(S.metricCost).click();
+  model.click();
+  expect(pressed()).toEqual(['false', 'false', 'true']);
+});
+
+it('draws at most as many World colours as the palette has, folding the smallest into one labelled part whose value is their sum', async () => {
+  const { dimParts, compVal, compLabel, FOLD_KEY } = await import('../console/features/cost/chart.ts');
+  const { U_PALETTE } = await import('../console/features/cost/labels.ts');
+  const n = U_PALETTE.length;
+  const keys = Array.from({ length: n + 1 }, (_, i) => `w${i}`);
+  const d = { byWorld: keys.map((key, i) => ({ key, calls: 1, cost: n + 1 - i })) };
+  const parts = dimParts(d, 'world', 'cost');
+  expect(parts.map((part) => part.key)).toEqual([...keys.slice(0, n - 1), FOLD_KEY]);
+  const point = { bucket: '2026-11-01', byWorld: Object.fromEntries(keys.map((key) => [key, { cost: 1 }])) };
+  expect(compVal(point, [parts.at(-1)], 'cost')).toBe(2);
+  expect(compLabel(d, [parts.at(-1)])).toBe(S.foldLabel(2));
+});
+
 it('offers only a day or coarser over a custom range with an open end, which may reach back to the first record', () => {
   expect(['minute', 'hour', 'day', 'week', 'month', 'auto'].filter((unit) => bucketFits(unit, NaN))).toEqual(['day', 'week', 'month', 'auto']);
 });

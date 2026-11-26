@@ -59,8 +59,16 @@ const METRICS: ReadonlyArray<{ value: UsageMetric; label: string }> = [
 const SPLITS: ReadonlyArray<{ dim: UsageDim; label: string }> = [
   { dim: 'type', label: S.dimType },
   { dim: 'role', label: S.dimRole },
+  { dim: 'world', label: S.dimWorld },
   { dim: 'model', label: S.dimModel },
 ];
+
+/** 桶里没有 World 与角色、模型的交叉，选 World 时另两个取消，反之亦然。 */
+const EXCLUSIVE: Partial<Record<UsageDim, readonly UsageDim[]>> = {
+  world: ['role', 'model'],
+  role: ['world'],
+  model: ['world'],
+};
 
 /** 已知金额。全部未计价为「未知」;部分未计价时金额是下限,后缀标出。 */
 function costText(amount: number, a: Partial<UsageAccum>, cur: string, decimals: 2 | 3 = 2): string {
@@ -230,8 +238,11 @@ export function mountUsage(ctx: PageContext): void {
     btn.setAttribute('aria-pressed', 'false');
     btn.addEventListener('click', () => {
       state.splitDims[dim] = !state.splitDims[dim];
-      btn.classList.toggle('active', !!state.splitDims[dim]);
-      btn.setAttribute('aria-pressed', String(!!state.splitDims[dim]));
+      if (state.splitDims[dim]) for (const other of EXCLUSIVE[dim] ?? []) state.splitDims[other] = false;
+      for (const b of splitBtns) {
+        b.btn.classList.toggle('active', !!state.splitDims[b.dim]);
+        b.btn.setAttribute('aria-pressed', String(!!state.splitDims[b.dim]));
+      }
       renderMain();
     }, { signal: ctx.signal });
     splitWrap.appendChild(btn);
@@ -295,12 +306,12 @@ export function mountUsage(ctx: PageContext): void {
 
   function renderMain(): void {
     const calls = state.metric === 'calls';
-    for (const { dim, btn } of splitBtns) if (dim === 'type') btn.disabled = calls;
+    for (const { dim, btn } of splitBtns) if (dim === 'type' || dim === 'world') btn.disabled = calls;
     if (!state.data) return;
     renderChart(
       { doc, ui, box: mainBox, legend: mainLegend, tip, color },
-      state.data,
-      { metric: state.metric, dims: state.splitDims, allowType: !calls, sort: state.sortByShare },
+      { ...state.data, byWorld: labeledWorlds(state.data) },
+      { metric: state.metric, dims: state.splitDims, sort: state.sortByShare },
     );
     const unpriced = state.data.totals?.unpricedCalls || 0;
     mainNote.textContent = state.metric === 'cost' && unpriced > 0 ? S.compUnpriced(unpriced) : '';
@@ -499,9 +510,12 @@ export function mountUsage(ctx: PageContext): void {
 
   /** World id 到 /api/worlds 给的显示名;不在清单里的(已删除的 World)首列只印 id。 */
   let worldLabels = new Map<string, string>();
+  function labeledWorlds(d: UsageAggregate): UsageGroupStat[] {
+    return (d.byWorld || []).map((g) => ({ ...g, label: worldLabels.get(g.key) }));
+  }
   /** 按 World 一表，末行是未归属。 */
   function renderWorlds(d: UsageAggregate): void {
-    const worlds = (d.byWorld || []).map((g) => ({ ...g, label: worldLabels.get(g.key) }));
+    const worlds = labeledWorlds(d);
     const unattributed = d.unattributed?.calls ? [{ ...d.unattributed, key: S.unattributed }] : [];
     renderGroup(groupTables.world, [...worlds, ...unattributed], d.currency || 'USD');
   }
@@ -588,7 +602,9 @@ export function mountUsage(ctx: PageContext): void {
   // 读不到清单时 World 一表照样按 id 列出。
   void get<{ worlds?: Array<{ id: string; label?: string }> }>('/api/worlds', { signal: ctx.signal }).then((data) => {
     worldLabels = new Map((data.worlds ?? []).flatMap((world) => (world.label ? [[world.id, world.label] as const] : [])));
-    if (state.data) renderWorlds(state.data);
+    if (!state.data) return;
+    renderWorlds(state.data);
+    if (state.splitDims.world) renderMain();
   }, () => {});
 }
 
