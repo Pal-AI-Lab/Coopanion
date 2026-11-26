@@ -309,7 +309,7 @@ Windows 上桌宠窗口从前台窗口拿走键盘，打字框关掉后还回去
 | `bubble` | bot 气泡的配色:`{ light, dark }`,各是 `{ fill, text, line }`(底色、字色、边框和尾巴，十六进制颜色),按桌宠的夜间模式取一套;预设里的 `bubble` 优先。人说的话的气泡不变。缺一套或颜色写错时整项不用 |
 | `can` | `{ walk: false }` 表示不会走,`pet_move_to` 拒绝默认目标 |
 | `moves` | 这个包给 `pet_move_to` 加的目标,见下文;可省 |
-| `needs` | 包要桌宠页额外交给身体的桌面数据,这一版只有 `windows`,见下文;不认识的值跳过并记一条问题;可省 |
+| `needs` | 包要桌宠页额外交给身体的桌面数据:`windows`(窗口)、`icons`(桌面图标,暂只 Windows),见下文;不认识的值跳过并记一条问题;可省 |
 | `thumb` | 这个包的图:装扮页「形象」一行和导入列表都显示它,不随各维的选择变化 |
 | `author`、`license`、`credits`、`version` | 署名与展示 |
 
@@ -397,6 +397,28 @@ kit 走到它给的舞台坐标;返回 null 或没给这个目标时按 `busy` �
 
 Coopanion 在 Linux 上固定跑在 X11 上;Wayland 会话里经 XWayland 只看得到 X11 程序的窗口,原生 Wayland 程序的窗口不在里面。
 读不了的地方(没有 X 服务器、原生调用加载不了)和浏览器标签里没有 `ledges` 和 `windows`,包要能在没有它们时照常运行。
+
+### 桌面图标
+
+`needs: ["icons"]` 的包在场时,窗口进程每秒算一次桌面图标(`host/icons.cjs`),图标本身最多每 2 秒向 explorer 读一次,有变化才发。
+坐标和 `windows` 同一套舞台像素。身体从 `host.bounds()` 读到两份:
+
+| 字段 | 内容 |
+|---|---|
+| `icons` | 图标 `[{ id, x0, y0, x1, y1, occluded? }]`(图标图像那一块,不含下面的文字):伸进舞台、地面以上、且没被窗口整个挡住的,按桌面的顺序,最多 128 个;被窗口挡住一部分的带 `occluded: true` |
+| `iconLedges` | 这些图标顶边没被窗口挡住的部分 `[{ id, x0, x1, y }]`(形状同 `ledges`,多一个图标的 `id`),从高到低排 |
+
+图标的顶边单独放在 `iconLedges`,不并进 `ledges`:已有的包把 `ledges` 当窗口顶边读,不受影响;要把图标当台阶的包两份一起用。
+`id` 是图标在桌面列表里的序号,桌面不重排、不增删时不变。只有几何,没有图标名、文件名和路径。
+桌面图标被隐藏(「显示桌面图标」关掉)时 `icons` 为空;窗口挡住的算法同 `ledges`:桌面在所有窗口下面,遮挡用的是同一份窗口列表(不论包要不要 `windows`)。
+只要 `icons` 的包不会因此拿到 `windows`。
+
+| 平台 | 怎么读 | 坐标 |
+|---|---|---|
+| Windows(未实测) | 桌面是 `Progman`(或某个 `WorkerW`)下 `SHELLDLL_DefView` 里的 `SysListView32`;`LVM_GETITEMCOUNT`,再逐个 `LVM_GETITEMRECT`(`LVIR_ICON`):RECT 在 explorer 里 `VirtualAllocEx` 分配,`ReadProcessMemory` 读回;消息都走 `SendMessageTimeoutW`(`SMTO_ABORTIFHUNG`,200 ms),explorer 卡住也不拖住窗口进程;32 位版本不读 | ListView 客户区像素,`ClientToScreen` 换成屏幕物理像素,再按每个角所在显示器的缩放换成 DIP,同窗口 |
+| macOS、Linux | 暂不读,没有 `icons` 和 `iconLedges` | — |
+
+读不了、出错时这一轮给空列表;原生调用加载不了时没有这两个字段。包要能在没有它们时照常运行。
 
 ### 导入
 
