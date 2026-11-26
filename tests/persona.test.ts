@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ToolDef } from 'cortico/core/types.ts';
-import { Cormini } from '../vendor/cortico/bots/cormini/persona/persona.ts';
+import { CORMINI_CONTEXT_DEFAULTS, Cormini } from '../vendor/cortico/bots/cormini/persona/persona.ts';
 import { gitInstalled } from '../vendor/cortico/bots/cormini/persona/workspaceGit.ts';
 import { ARCHIVE_DIR, AUTHOR_COO, PARTNER_DIR, PARTNER_FILE, PARTNER_NOTE, SNAPSHOT_TAG, arrangePartner, coopanionPersona, deliveryLine } from '../core/persona.ts';
 
@@ -176,5 +176,34 @@ describe('the handoff note split', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('handoffs after the first', () => {
+  it('reminds and asks again when the count passes the soft threshold a second time', async () => {
+    const { p } = persona();
+    const over = CORMINI_CONTEXT_DEFAULTS.maxTokens * CORMINI_CONTEXT_DEFAULTS.softRatio + 1;
+    let estTokens = over;
+    let asked = 0;
+    p.attach({
+      sessionInfo: (id: string) => ({ id, running: 0, snapshot: null, estTokens, hardTokens: null }),
+      injectInternal: () => {},
+      injectExternal: () => {},
+      toolsTagged: () => new Set<string>(),
+      requestContextHandoff: () => { asked++; return true; },
+    } as never);
+    p.onBatchEnd();
+    p.onBatchEnd();
+    expect(asked).toBe(1);
+
+    // Core's order: the handoff runs, that batch ends, and the next batch is delivered into the new session
+    await p.onHandoff([], { hardTokens: null });
+    estTokens = 0;
+    p.onBatchEnd();
+    p.onDelivery({ events: [] });
+    estTokens = over;
+    p.onBatchEnd();
+    p.onBatchEnd();
+    expect(asked).toBe(2);
   });
 });
