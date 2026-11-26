@@ -9,17 +9,20 @@ import { bucketFits, MAX_BUCKETS } from '../console/features/cost/range.ts';
 /** A range with no calls in it. */
 const aggregate = { from: '2026-11-01', to: '2026-11-02', timezone: 'UTC', bucket: 'day', currency: 'USD', currencies: [], totals: { calls: 0 }, series: [], byRole: [], byModel: [], byInstance: [] };
 const OFFLINE = 'usage store offline';
-let life, available, requested;
+let life, available, requested, usage, worlds;
 
 beforeEach(() => {
   available = true;
+  usage = aggregate;
+  worlds = [];
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   requested = [];
   vi.stubGlobal('fetch', async (path) => {
+    if (String(path) === '/api/worlds') return new Response(JSON.stringify({ worlds }), { status: 200 });
     if (!String(path).startsWith('/api/usage?')) throw new Error(`Unexpected request: ${path}`);
     requested.push(new URLSearchParams(String(path).slice('/api/usage?'.length)));
     return available
-      ? new Response(JSON.stringify(aggregate), { status: 200 })
+      ? new Response(JSON.stringify(usage), { status: 200 })
       : new Response(JSON.stringify({ error: OFFLINE }), { status: 503 });
   });
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -92,6 +95,16 @@ it('offers no granularity that splits the range into more than MAX_BUCKETS bars,
   await vi.waitFor(() => expect(requested.at(-1).get('days')).toBe('90'));
   expect(requested.at(-1).get('bucket')).toBe('hour');
   expect(hour.classList.contains('active')).toBe(true);
+});
+
+it('lists usage by World under the names /api/worlds gives, ids for Worlds it no longer lists, and the unattributed part last', async () => {
+  const group = (key, calls, cost) => ({ key, calls, cost, promptTokens: 0, completionTokens: 0, cacheHitRate: null });
+  usage = { ...aggregate, byWorld: [group('qq', 3, 2), group('removed-world', 1, 1)], unattributed: group('unattributed', 2, 0.5) };
+  worlds = [{ id: 'qq', label: 'QQ chats' }];
+  const { root } = mount();
+  [...root.querySelectorAll('button')].find((el) => el.textContent === S.byWorld).click();
+  const firstCells = () => [...root.querySelectorAll('tbody tr')].map((row) => row.children[0].textContent);
+  await vi.waitFor(() => expect(firstCells()).toEqual(['QQ chats qq', 'removed-world', S.unattributed]));
 });
 
 it('offers only a day or coarser over a custom range with an open end, which may reach back to the first record', () => {
