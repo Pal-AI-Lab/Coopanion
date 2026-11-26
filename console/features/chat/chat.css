@@ -53,7 +53,9 @@
 .pet-bubble .b-own { display: flex; align-items: center; gap: 6px; padding: 3px 3px 3px 10px; border-radius: 11px; border: 1.5px dashed var(--line); background: var(--paper); }
 .pet-bubble .b-own:focus-within, .pet-bubble .b-own.chosen { border-style: solid; border-color: var(--accent); }
 .pet-bubble .b-own input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink); outline: none; padding: 4px 0; }
-.pet-bubble .b-own button { flex: none; font: inherit; font-size: 12.5px; padding: 4px 10px; border-radius: 8px; border: 0; background: var(--ink); color: var(--sheet); cursor: pointer; }
+.pet-bubble .b-own button { flex: none; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 0; background: var(--ink); color: var(--sheet); cursor: pointer; transition: background var(--motion-fast), opacity var(--motion-fast); }
+.pet-bubble .b-own:not(.over) button:hover:not(:disabled) { background: var(--accent); }
+.pet-bubble .b-own button svg { width: 15px; height: 15px; }
 .pet-bubble .b-own button:disabled { cursor: default; }
 .pet-bubble .b-own .b-count { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--danger); }
 .pet-bubble .b-own.over, .pet-bubble .b-own.over:focus-within { border-color: var(--danger); }

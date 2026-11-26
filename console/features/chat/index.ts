@@ -11,7 +11,7 @@
  * (context.ts) then, at each phase change and every few seconds.
  */
 import type { WebUiImageAttachment } from 'cortico/web/shared/client-panel.ts';
-import { linked } from 'cortico-world-desktop-pet/web/ui.js';
+import { ICONS, linked } from 'cortico-world-desktop-pet/web/ui.js';
 import { get } from '../../base/api.ts';
 import { baseLanguage, LANGUAGE } from '../../base/language.ts';
 import type { Page, PageContext } from '../../base/page.ts';
@@ -242,8 +242,12 @@ async function mount(ctx: PageContext): Promise<void> {
         input.addEventListener('input', () => ownDrafts.set(it.askId, input.value), { signal: ctx.signal });
       }
       input.disabled = !open;
-      const submit = ui.h('button', null, S.send);
+      // the round arrow the pet's own answer box sends with (pet.css .b-own)
+      const submit = ui.h('button');
       submit.type = 'submit';
+      submit.innerHTML = ICONS.send;
+      submit.setAttribute('aria-label', S.send);
+      submit.title = S.send;
       submit.disabled = !open;
       // past the World's cap the answer stays in the field, is not sent, and its count shows
       const count = ui.h('span', 'b-count');
