@@ -195,6 +195,8 @@ Function RegisterInstallation
     SetOutPath "$INSTDIR"
     CreateShortCut "$DESKTOP\${SHORTCUT_NAME}.lnk" "$appExe" "" "$appExe"
     WinShell::SetLnkAUMI "$DESKTOP\${SHORTCUT_NAME}.lnk" "${APP_ID}"
+    ; The installation is complete without the shortcut when the desktop refuses it.
+    ClearErrors
   ${EndIf}
 FunctionEnd
 
