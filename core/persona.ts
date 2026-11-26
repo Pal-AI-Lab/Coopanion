@@ -243,38 +243,21 @@ ${super.partnerDoc() || `(${PARTNER_FILE} is empty.)`}`;
       };
     }
 
-    override onOpening(ctx: { reason: SessionOpeningReason }): void {
-      this.core?.injectInternal(ctx.reason === 'restarted' ? '[system] The app restarted; the session carries on.' : '[system] The session has started.', 'opening');
+    protected override openingNotice(reason: SessionOpeningReason): string {
+      return reason === 'restarted' ? '[system] The app restarted; the session carries on.' : '[system] The session has started.';
     }
 
-    override onWorldLifecycle(event: WorldLifecycleEvent): void {
-      if (event.kind === 'start-failed') {
-        this.core?.injectInternal(`[system] The World "${event.label}" failed to start and is not running this time: ${event.reason}`, 'notice');
-        return;
-      }
-      if (event.kind === 'failed') {
-        this.core?.injectInternal(`[system] The World "${event.label}" hit an error while running and was turned off; it is not running this time: ${event.reason}`, 'notice');
-        return;
-      }
+    protected override worldLifecycleNotice(event: WorldLifecycleEvent): string {
+      if (event.kind === 'start-failed') return `[system] The World "${event.label}" failed to start and is not running this time: ${event.reason}`;
+      if (event.kind === 'failed') return `[system] The World "${event.label}" hit an error while running and was turned off; it is not running this time: ${event.reason}`;
       const what = event.kind === 'visibility'
         ? (event.visible ? 'is visible to you again' : 'is hidden from you; its events no longer reach you')
         : event.kind === 'mounted' ? 'is on' : event.kind === 'unmounted' ? 'is off' : 'restarted';
-      this.core?.injectInternal(`[system] The World "${event.label}" ${what}.`, 'notice');
+      return `[system] The World "${event.label}" ${what}.`;
     }
 
-    /**
-     * Cormini's delivery: the batch's opening moment is kept, the heartbeat's quiet time starts over, and one line
-     * counts the events and dates them.
-     */
-    override onDelivery(ctx: { events: EventEnvelope[] }): void {
-      // The handoff note splits at the moment the batch that crossed the soft threshold opened, so what Coo said in
-      // that batch stays in the latest stretch. Deliveries between turns of one batch come here too; the first counts.
-      this.batchOpenedAt ??= Date.now();
-      const externals = ctx.events.filter((e) => e.origin === 'external');
-      if (externals.length === 0) return;
-      // Cormini keeps its heartbeat private; the bracket access is TypeScript's way in for a subclass
-      this['heartbeat'].noteActivity();
-      this.core?.injectInternal(deliveryLine(externals), 'notice');
+    protected override deliveryNotice(externals: EventEnvelope[]): string {
+      return deliveryLine(externals);
     }
 
     protected override pressureNote(): string {
