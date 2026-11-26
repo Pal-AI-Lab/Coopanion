@@ -6,7 +6,7 @@
 import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import { consoleFormat } from '../../base/ui/format.ts';
 import { esc } from '../../base/ui/dom.ts';
-import { prefersStill } from '../../base/motion.ts';
+import { cssEasing, motionLevel } from '../../base/motion.ts';
 import { clampNumber, hexToHsl, hslCss } from '../../base/theme/palette.ts';
 import { U_PALETTE, U_TYPES } from './labels.ts';
 import { S } from './strings.ts';
@@ -503,7 +503,7 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
   // moves, so a column change repaints one bar, not the chart.
   const spot = mkSvgEl(doc, 'svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: 'bspot' });
   // without the animation API (or with reduced motion) the copy lifts and drops at once
-  const still = prefersStill(doc.defaultView) || typeof spot.animate !== 'function';
+  const still = motionLevel(doc.defaultView) === 'low' || typeof spot.animate !== 'function';
   const glow = `drop-shadow(0 2px 8px color-mix(in srgb, ${doc.defaultView?.getComputedStyle(box).getPropertyValue('--accent').trim() || 'currentColor'} 45%, transparent))`;
   const rest = (dim: boolean): Keyframe => ({ opacity: dim ? .35 : 1, transform: 'translateY(0)', filter: 'drop-shadow(0 2px 8px transparent)' });
   const lifted: Keyframe = { opacity: 1, transform: 'translateY(-3px)', filter: glow };
@@ -533,7 +533,7 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
     spot.appendChild(el);
     copy = { i, el, lift };
     if (still) { lift.style.transform = 'translateY(-3px)'; lift.style.filter = glow; }
-    else lift.animate([rest(true), lifted], { duration: 260, easing: 'cubic-bezier(.34, 1.56, .64, 1)', fill: 'forwards' });
+    else lift.animate([rest(true), lifted], { duration: 260, easing: cssEasing(doc.defaultView, '--motion-pop', 'cubic-bezier(.34, 1.56, .64, 1)'), fill: 'forwards' });
   };
   /** The pointed segment of the lifted copy is lit and the copy's others dim (cost.css). */
   const light = (cid: string | undefined): void => {

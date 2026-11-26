@@ -54,6 +54,14 @@ const ja: Translation<PetText> = {
     linuxNoX11: 'タイピングキーが X11 ディスプレイに接続できません',
     unsupported: 'タイピングキーは Windows、macOS、Linux でのみ使えます',
   },
+  throughPauseKey: {
+    macNoKey: 'Mac のキーボードにはこのキーがありません。別の透過の一時停止キーを選んでください',
+    linuxNoKey: 'Linux ではこのキーを読み取れません（マウスのサイドボタンは使えません）。別の透過の一時停止キーを選んでください',
+    linuxNoDisplay: 'Linux で透過の一時停止キーを使うには X11（または XWayland）が必要です：DISPLAY が設定されていません',
+    linuxNoX11: '透過の一時停止キーが X11 ディスプレイに接続できません',
+    unsupported: '透過の一時停止キーは Windows、macOS、Linux でのみ使えます',
+    sharesTalk: '話すキーと同じ押し方です：押している間は聞き取りも始まります。どちらかを変更してください',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 音声認識（${culture}）` : 'Windows 音声認識'),
@@ -181,7 +189,7 @@ const ja: Translation<PetText> = {
     theme: { dark: '夜の見た目にする', light: '昼の見た目にする' },
     hover: (list: string) => `ホバーボタンを${list}にする`,
     hoverNone: 'ホバーボタンをすべて外す',
-    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', fade: "透明度", dress: '着せ替え', cua: "コンピューター操作", hide: 'ペットを隠す', worlds: '自分の World' },
+    actions: { chat: '入力', voice: '音声入力', roam: '歩き回り', theme: 'ナイトモード', sound: 'サウンド', size: 'サイズ', fade: "透明度", dress: '着せ替え', cua: "コンピューター操作", hide: 'ペットを隠す', through: 'クリックを下に通す', worlds: '自分の World' },
     user: (to: string) => `あなたを「${to}」と呼ぶ`,
   },
 
@@ -242,7 +250,8 @@ const ja: Translation<PetText> = {
     glow: { title: '外側の光', description: 'ペットの色が背景と近いときに体のまわりに出る淡い光が何ピクセル広がるか。0 でオフ。' },
     frameRate: { title: 'フレームレート', description: 'ペットが歩く、運ばれる、ジャンプするときの 1 秒あたりのフレーム数。0 はディスプレイに合わせます。ディスプレイのリフレッシュレートを超える分はディスプレイのレートになります。「ふるまい」ページでは 60、120、144、無制限を選べます。' },
     lockFrameRate: { title: 'フレームレート固定', description: '静止中もフレームレートでペットを描画します。オフのときは、立っている、座っている、眠っているあいだは 1 秒 30 フレームに下がります。' },
-    fade: { title: "透明度", description: "ペットと吹き出しの透け具合です。0 は不透明で、最大 95%、5% 刻みです。入力欄、質問、確認が開いているあいだと、ペットを持ち上げているあいだは不透明に戻ります。" },
+    motion: { title: "アニメーション", description: "設定ウィンドウとペットのウィンドウがどれだけ動くか。system はシステムの「動きを減らす」設定に合わせ（減らす指定なら low、そうでなければ high）、low は色の変化と読み込み表示だけを残し、medium は弾む動きと飾りの動きを省き、high はすべて残します。Coo 自身の動きは変わりません（roam を参照）。" },
+    fade: { title: "透明度", description: "ペットの透け具合です。0 は不透明で、最大 95%、5% 刻みです。" },
     hideWhenFullscreen: { title: '全画面表示中は隠れる', description: 'オンのときは、手前のウィンドウがペットのいる画面いっぱいに表示されているあいだ（ゲーム、全画面の動画、全画面表示のブラウザー）ペットが隠れ、全画面表示が終わると戻ってきます。最大化したウィンドウは対象外です。オフのときは常に最前面に表示されます。' },
     passWhenFullscreen: { title: "全画面表示中はクリックを Coo に通さない", description: "オンのときは、手前のウィンドウが Coo のいる画面いっぱいに表示されているあいだ、Coo は表示されたままで、クリックはすべて Coo を通り抜けて下のウィンドウに届きます。全画面表示が終わると元に戻ります。最大化したウィンドウは対象外です。全画面表示中は隠れるもオンなら Coo は隠れます。" },
     fadeWhenFullscreen: { title: "全画面表示中は薄くする", description: "オンのときは、手前のウィンドウが Coo のいる画面いっぱいに表示されているあいだ「全画面表示中の透明度」に替わり、全画面表示が終わると元に戻ります。最大化したウィンドウは対象外です。" },
@@ -250,7 +259,7 @@ const ja: Translation<PetText> = {
     overTaskbar: { title: "タスクバーの上に表示", description: "オンのとき、ペットのウィンドウは画面下端のタスクバーの上まで広がり、フィギュアが地面より下に描く部分（座ったときに垂れる足）がタスクバーの上に表示されます。オフのとき、ウィンドウはタスクバーの上端までです。" },
     hideFromCapture: { title: "スクリーンショットと録画に映さない", description: "オンのあいだ、Coo はスクリーンショット、画面録画、配信、Coo が撮るスクリーンショットに映りません。オンのあいだ、NVIDIA インスタントリプレイのデスクトップキャプチャを有効にできないことがあります。" },
     exportOverlay: { title: 'OBS オーバーレイ', description: 'ペットのウィンドウの画面を透明な背景で /overlay に出し、OBS の「ブラウザ」ソースで使えるようにします。オフのときは出しません。' },
-    electronFile: { title: 'Electron 実行ファイル', description: '空欄なら CORTICO_DESKTOP_PET_HOST、次にパネルからインストールしたランタイムを使います。' },
+    electronFile: { title: 'Electron 実行ファイル', description: 'CORTICO_DESKTOP_PET_HOST が設定されていないときに使います。空欄ならパネルからインストールしたランタイムを使います。Coopanion はこれを設定してペットのウィンドウを自分で起動するため、Coopanion ではこの項目は効きません。' },
     port: { title: 'ページのポート', description: '使用中のときは次の空きポートに繰り上げます。' },
     touchEnabled: { title: 'ふれあいをイベントにする', description: 'つつく、なでる、持ち上げて投げる。' },
     touchWakeOn: { title: '反応モード', description: 'poke：つついたときだけすぐに反応し、ほかのふれあいは次の反応時にまとめて届きます。all：すべてのふれあいにすぐ反応します。none：すべてのふれあいは次の反応時にまとめて届きます。custom：「ふるまい」ページでチェックしたふれあいにすぐ反応します。一度反応したあと、そのターンが終わるまでのふれあいは次の反応時にまとめて届きます。' },

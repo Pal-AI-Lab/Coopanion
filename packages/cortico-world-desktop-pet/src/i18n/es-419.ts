@@ -54,6 +54,14 @@ const es419: Translation<PetText> = {
     linuxNoX11: 'La tecla para escribir no puede conectarse a la pantalla X11',
     unsupported: 'La tecla para escribir solo funciona en Windows, macOS y Linux',
   },
+  throughPauseKey: {
+    macNoKey: 'Un teclado Mac no tiene esa tecla; elige otra tecla para pausar los clics a través',
+    linuxNoKey: 'Linux no puede leer esta tecla (los botones laterales del mouse no funcionan); elige otra tecla para pausar los clics a través',
+    linuxNoDisplay: 'La tecla para pausar los clics a través necesita X11 (o XWayland) en Linux: DISPLAY no está definido',
+    linuxNoX11: 'La tecla para pausar los clics a través no puede conectarse a la pantalla X11',
+    unsupported: 'La tecla para pausar los clics a través solo funciona en Windows, macOS y Linux',
+    sharesTalk: 'Se presiona igual que la tecla para hablar: mantenerla también empieza a escuchar; cambia una de las dos',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconocimiento de voz de Windows (${culture})` : 'Reconocimiento de voz de Windows'),
@@ -181,7 +189,7 @@ const es419: Translation<PetText> = {
     theme: { dark: 'cambiar al aspecto de noche', light: 'cambiar al aspecto de día' },
     hover: (list: string) => `cambiar los botones al pasar el cursor a ${list}`,
     hoverNone: 'quitar todos los botones al pasar el cursor',
-    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', fade: "Transparencia", dress: 'Vestuario', cua: "Uso de la computadora", hide: 'Ocultar mascota', worlds: 'Mis Worlds' },
+    actions: { chat: 'Escribir', voice: 'Entrada de voz', roam: 'Paseos', theme: 'Modo nocturno', sound: 'Sonidos', size: 'Tamaño', fade: "Transparencia", dress: 'Vestuario', cua: "Uso de la computadora", hide: 'Ocultar mascota', through: 'Clics a través', worlds: 'Mis Worlds' },
     user: (to: string) => `llamarte «${to}»`,
   },
 
@@ -242,7 +250,8 @@ const es419: Translation<PetText> = {
     glow: { title: 'Brillo exterior', description: 'Cuántos píxeles se extiende el brillo claro alrededor de la mascota cuando los colores de Coo se parecen al fondo; 0 lo apaga.' },
     frameRate: { title: 'Velocidad de fotogramas', description: 'Fotogramas por segundo mientras la mascota camina, cuelga del puntero o salta; 0 sigue a la pantalla. Por encima de la frecuencia de actualización de la pantalla, se usa la de la pantalla. La página Hábitos ofrece 60, 120, 144 y Sin límite.' },
     lockFrameRate: { title: 'Fijar velocidad de fotogramas', description: 'También dibuja la mascota a esa velocidad en reposo. Si está desactivado, baja a 30 fotogramas por segundo mientras está de pie, se sienta o duerme.' },
-    fade: { title: "Transparencia", description: "Qué tan transparentes son la mascota y sus burbujas: 0 es opaco, hasta 95 %, en pasos de 5 %. La mascota vuelve a ser opaca mientras el cuadro de texto, una pregunta o una confirmación están abiertos, y mientras la llevas." },
+    motion: { title: "Movimiento", description: "Cuánto se mueve la interfaz, en la ventana de ajustes y en la de la mascota: system sigue el ajuste del sistema para reducir el movimiento (low si pide menos, high si no), low deja solo los cambios de color y los indicadores de carga, medium quita los rebotes y el movimiento decorativo, high lo deja todo. El movimiento de Coo no cambia; ver roam." },
+    fade: { title: "Transparencia", description: "Qué tan transparente es la mascota: 0 es opaco, hasta 95 %, en pasos de 5 %." },
     hideWhenFullscreen: { title: 'Ocultar en pantalla completa', description: 'Si está activado, la mascota se oculta mientras la ventana del frente ocupa toda la pantalla donde está (un juego, un video en pantalla completa, un navegador en pantalla completa) y vuelve cuando termina la pantalla completa; una ventana maximizada no cuenta. Si está desactivado, siempre queda encima.' },
     passWhenFullscreen: { title: "Dejar pasar los clics en pantalla completa", description: "Si está activado, mientras la ventana del frente ocupa toda la pantalla de Coo, Coo sigue visible y cada clic pasa a través de él a la ventana de abajo, hasta que termina la pantalla completa; una ventana maximizada no cuenta. Si «Ocultar en pantalla completa» también está activado, Coo se oculta." },
     fadeWhenFullscreen: { title: "Atenuar en pantalla completa", description: "Si está activado, mientras la ventana del frente ocupa toda la pantalla de Coo, la transparencia en pantalla completa reemplaza a la habitual, hasta que termina la pantalla completa; una ventana maximizada no cuenta." },
@@ -250,7 +259,7 @@ const es419: Translation<PetText> = {
     overTaskbar: { title: "Mostrar sobre la barra de tareas", description: "Activado, la ventana de la mascota baja por encima de la barra de tareas en la parte inferior de la pantalla, y lo que una figura dibuja debajo del suelo (las piernas que cuelgan al sentarse) se muestra sobre la barra de tareas; desactivado, la ventana termina en el borde superior de la barra de tareas." },
     hideFromCapture: { title: "No aparecer en capturas ni grabaciones", description: "Mientras está activado, Coo no aparece en capturas de pantalla, grabaciones de pantalla, transmisiones en vivo ni en las capturas que toma Coo. Mientras está activado, es posible que la captura de escritorio de Repetición instantánea de NVIDIA no se pueda activar." },
     exportOverlay: { title: 'Overlay de OBS', description: 'Sirve la imagen de la ventana de la mascota con fondo transparente en /overlay para una fuente «Navegador» de OBS; si está desactivado, no se sirve nada.' },
-    electronFile: { title: 'Ejecutable de Electron', description: 'Si está vacío, se usa CORTICO_DESKTOP_PET_HOST y luego el entorno instalado desde el panel.' },
+    electronFile: { title: 'Ejecutable de Electron', description: 'Se usa cuando CORTICO_DESKTOP_PET_HOST no está definido; si está vacío, se usa el entorno instalado desde el panel. Coopanion lo define y abre la ventana de la mascota por su cuenta, así que en Coopanion esta opción no tiene efecto.' },
     port: { title: 'Puerto de la página', description: 'Si está ocupado, pasa al siguiente puerto libre.' },
     touchEnabled: { title: 'Los toques se vuelven eventos', description: 'Toquecitos, caricias, levantadas y lanzamientos.' },
     touchWakeOn: { title: 'Modo de respuesta', description: 'poke: solo un toque recibe respuesta enseguida; los demás toques esperan a la siguiente respuesta. all: todos los toques reciben respuesta. none: todos los toques esperan a la siguiente respuesta. custom: reciben respuesta los toques marcados en la página Hábitos. Tras una respuesta, los toques hasta el final de ese turno esperan a la siguiente.' },

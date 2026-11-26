@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('petHost', {
   onFullscreenFade: (cb) => ipcRenderer.on('pet:fullscreenFade', (_e, on) => cb(!!on)),
   /** Whether every click passes through the window (the tray's "click through"); the window process enforces it. */
   clickThrough: (on) => ipcRenderer.send('pet:clickThrough', !!on),
+  /** Whether clicks reach the page despite click-through right now: the click-through pause key held, or the person dealing with the pet. */
+  lendClicks: (on) => ipcRenderer.send('pet:lendClicks', !!on),
   openDress: () => ipcRenderer.send('pet:openDress'),
   /** The app language the page shows, for the window process's own words (the tray menu). */
   setLanguage: (code) => ipcRenderer.send('pet:language', String(code)),
@@ -49,6 +51,8 @@ contextBridge.exposeInMainWorld('petHost', {
   sampleBackdrop: (rect, skip) => ipcRenderer.invoke('pet:sampleBackdrop', { rect, skip }),
   /** Moves the window to the display under the cursor: { x, y } the cursor and { w, h } the new size in page pixels, or null when it stays. */
   followCursor: () => ipcRenderer.invoke('pet:followCursor'),
+  /** Whether the cursor is over another display than the one the window covers, so `followCursor` would move it. */
+  cursorElsewhere: () => ipcRenderer.invoke('pet:cursorElsewhere'),
   /** Whether the window streams to the World's OBS overlay; while it does, the page reports each frame with `overlayFrame`. */
   onOverlay: (cb) => ipcRenderer.on('pet:overlay', (_e, on) => cb(!!on)),
   /** A frame drawn: the part of the page the overlay shows (the pet and its bubbles) in page pixels or null, and when it was drawn (ms since the epoch). */

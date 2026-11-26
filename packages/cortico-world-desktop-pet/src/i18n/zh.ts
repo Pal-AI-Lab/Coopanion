@@ -68,6 +68,15 @@ export default {
     linuxNoX11: '打字键连不上 X11 显示',
     unsupported: '打字键只在 Windows、macOS 和 Linux 上可用',
   },
+  /** 暂停穿透键读不了的原因;另两种与说话键共用 `hotkey` 里的 */
+  throughPauseKey: {
+    macNoKey: 'Mac 上没有这个按键，请更换暂停穿透键',
+    linuxNoKey: 'Linux 上无法读取该按键（不支持鼠标侧键），请更换暂停穿透键',
+    linuxNoDisplay: '暂停穿透键在 Linux 上需要 X11（或 XWayland）：没有找到 DISPLAY',
+    linuxNoX11: '暂停穿透键连不上 X11 显示',
+    unsupported: '暂停穿透键只在 Windows、macOS 和 Linux 上可用',
+    sharesTalk: '和说话键的按法相同：按住时也会开始收音，请更换其中一个',
+  },
 
   /** Windows 自带的语音识别 */
   system: {
@@ -203,7 +212,7 @@ export default {
     theme: { dark: '换成夜间模式', light: '换成白天模式' } as Record<'dark' | 'light', string>,
     hover: (list: string) => `把悬停按钮换成${list}`,
     hoverNone: '去掉所有悬停按钮',
-    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', fade: "透明度", dress: '装扮', cua: "电脑操作", hide: '隐藏桌宠', worlds: '我的 World' } as Record<string, string>,
+    actions: { chat: '打字', voice: '语音输入', roam: '走动', theme: '夜间模式', sound: '音效', size: '大小', fade: "透明度", dress: '装扮', cua: "电脑操作", hide: '隐藏桌宠', through: '鼠标穿透', worlds: '我的 World' } as Record<string, string>,
     user: (to: string) => `改叫你「${to}」`,
   },
 
@@ -269,7 +278,8 @@ export default {
     glow: { title: '外发光', description: '桌宠和身后的颜色相近时，身体周围出现的浅色外发光向外延伸多少像素；0 为关闭。' },
     frameRate: { title: '帧率', description: '走动、被拎着、跳起时每秒画多少帧；0 跟随显示器刷新率。超过显示器刷新率时按显示器的。「习惯」页可选 60、120、144 和不限。' },
     lockFrameRate: { title: '帧率锁定', description: '静止时也按「帧率」画桌宠。关着时站着、坐着、睡着降到每秒 30 帧。' },
-    fade: { title: "透明度", description: "桌宠和气泡有多透明：0 为不透明，最高 95%，5% 一档。打字框、提问或确认卡片打开时，以及拎着桌宠时恢复不透明。" },
+    motion: { title: "动态效果", description: "界面动画的多少，设置窗口和桌宠窗口一起改变：system 跟随系统的「减少动态效果」（要求减少时为 low，否则为 high），low 只保留颜色变化和加载指示，medium 去掉回弹和装饰性的动画，high 全部保留。Coo 的走动不受影响，见 roam。" },
+    fade: { title: "透明度", description: "桌宠有多透明：0 为不透明，最高 95%，5% 一档。" },
     hideWhenFullscreen: { title: '全屏时自动隐藏', description: '开着时，前台窗口全屏铺满桌宠所在的那块屏（游戏、全屏视频、浏览器全屏）就把 Coo 藏起来，退出全屏放回来；最大化的窗口不算。关着时一直浮在上面。' },
     passWhenFullscreen: { title: "全屏时鼠标穿透", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间 Coo 照常显示，点击全部穿过 Coo 落到下面的窗口，退出全屏后恢复；最大化的窗口不算。和全屏时自动隐藏同时开着时 Coo 会隐藏。" },
     fadeWhenFullscreen: { title: "全屏时变淡", description: "开着时，前台窗口全屏铺满桌宠所在的那块屏期间改用「全屏时透明度」，退出全屏后恢复；最大化的窗口不算。" },
@@ -277,7 +287,7 @@ export default {
     overTaskbar: { title: "显示在任务栏上", description: "开着时桌宠窗口向下盖住屏幕底部的任务栏，形象绘制在地面以下的部分（坐下时垂下的腿）显示在任务栏上；关着时窗口到任务栏上沿为止。" },
     hideFromCapture: { title: "不出现在截图和录屏里", description: "开着时 Coo 不出现在截图、录屏、直播和 Coo 自己的截屏里。开着时 NVIDIA 即时重放的桌面捕获可能无法开启。" },
     exportOverlay: { title: 'OBS 画面', description: '在 /overlay 提供桌宠窗口的透明画面，供 OBS「浏览器」来源使用；关闭时不提供。' },
-    electronFile: { title: 'Electron 程序', description: '留空时依次用 CORTICO_DESKTOP_PET_HOST 和面板里安装的运行时。' },
+    electronFile: { title: 'Electron 程序', description: '没有设置 CORTICO_DESKTOP_PET_HOST 时使用，留空则使用面板里安装的运行时。Coopanion 设置了它，自己启动桌宠窗口，这一项在 Coopanion 里不生效。' },
     port: { title: '页面端口', description: '被占用时向上顺延。' },
     touchEnabled: { title: '互动发成事件', description: '戳、摸、拎起来甩出去。' },
     touchWakeOn: { title: '回应模式', description: 'poke：只有戳一下马上回应，其余互动等下次回应时一并送达；all：所有互动都马上回应；none：所有互动都等下次回应时一并送达；custom：按「习惯」页勾选的互动马上回应。一次互动得到回应之后、本轮结束之前的互动，都等下次回应时一并送达。' },

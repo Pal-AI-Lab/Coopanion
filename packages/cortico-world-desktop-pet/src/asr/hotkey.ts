@@ -1,5 +1,5 @@
 /**
- * The talk key and the typing key: hotkeys held or pressed anywhere on the desktop, read by polling through koffi:
+ * The talk key, the typing key and the click-through pause key: hotkeys held or pressed anywhere on the desktop, read by polling through koffi:
  * GetAsyncKeyState on Windows, CGEventSourceFlagsState / CGEventSourceKeyState / CGEventSourceButtonState on macOS,
  * XQueryKeymap on Linux (X11 or XWayland). macOS
  * reads the keyboard only for an app the person allowed under Privacy & Security → Input
@@ -34,6 +34,8 @@ const NAMED: Record<string, number> = {
 export const DEFAULT_HOTKEY = 'LeftAlt*2';
 /** The typing key a new setup gets once it is switched on: a double tap of left Ctrl (left Control on a Mac). */
 export const DEFAULT_TYPE_KEY = 'LeftCtrl*2';
+/** The click-through pause key a new setup gets once it is switched on: hold right Ctrl, which alone opens no menu. */
+export const DEFAULT_THROUGH_PAUSE_KEY = 'RightCtrl';
 
 export interface Hotkey {
   /** Virtual-key codes, all down together. */
@@ -267,8 +269,12 @@ export const TAP_MAX_MS = 300;
 /** Longest pause between a tap's release and the next press; Windows' double-click time (500 ms, press to press) minus a tap. */
 export const TAP_GAP_MS = 400;
 
-/** The final press activates immediately, after a hold, or on a quick release. */
-export type HotkeyTrigger = 'press' | 'hold' | 'tap';
+/**
+ * The final press activates immediately, after a hold, or on a quick release. `holdAlone` is a hold with no other key or
+ * mouse button down before it activates and no quick tap of its own keys just before the sequence, so a hotkey that
+ * taps the same keys first (the talk key's tap and hold) does not set it off.
+ */
+export type HotkeyTrigger = 'press' | 'hold' | 'holdAlone' | 'tap';
 
 /**
  * Samples the raw key state on every poll, including while held, with `others` true while another
@@ -278,11 +284,12 @@ export type HotkeyTrigger = 'press' | 'hold' | 'tap';
  * shortcut: no tap, and the count starts over.
  */
 export function tapTracker(taps: number, onChange: (down: boolean) => void, onTap: (count: number) => void = () => {}, trigger: HotkeyTrigger = 'press', onRelease: () => void = () => {}) {
-  let count = 0, lastUp = 0, pressAt = 0, active = false, wasDown = false, mixed = false;
+  let count = 0, lastUp = -Infinity, pressAt = 0, active = false, wasDown = false, mixed = false, tappedBefore = false;
   return (down: boolean, now: number, others = false): void => {
     if (down === wasDown) {
       if (down) mixed ||= others;
-      if (down && trigger === 'hold' && !active && count === taps - 1 && now - pressAt > TAP_MAX_MS) {
+      const holds = trigger === 'hold' || (trigger === 'holdAlone' && !mixed && !tappedBefore);
+      if (down && holds && !active && count === taps - 1 && now - pressAt > TAP_MAX_MS) {
         count = 0; active = true; onChange(true);
       }
       return;
@@ -292,6 +299,8 @@ export function tapTracker(taps: number, onChange: (down: boolean) => void, onTa
       if (count && now - lastUp > TAP_GAP_MS) count = 0;
       pressAt = now;
       mixed = others;
+      // a quick tap just ended a sequence of its own: this press continues that one
+      tappedBefore = count === 0 && now - lastUp <= TAP_GAP_MS;
       if (count === taps - 1 && trigger === 'press') { count = 0; active = true; onChange(true); }
       return;
     }

@@ -90,6 +90,8 @@ export interface DesktopPetAssembly {
   onBotChange?(): void;
   /** Called when the pet window comes onto the desktop or leaves it (`onDesktop` of the pet panel's state). */
   onDesktopChange?(onDesktop: boolean): void;
+  /** Called when every click starts or stops passing through the pet, from the tray or the pet's own button. */
+  onClickThroughChange?(on: boolean): void;
   /** What the status bubble shows for a tool call; see `DescribeTool`. */
   describeTool?: DescribeTool;
   /** The language of what the bot reads from this World, read at each use; Chinese when absent. */
@@ -129,6 +131,7 @@ export function desktopPetDefinition(assembly: DesktopPetAssembly = {}): WorldDe
         packDir: () => join(ctx.dataDir, 'figures'),
         onBotChange: () => assembly.onBotChange?.(),
         onDesktopChange: (on) => assembly.onDesktopChange?.(on),
+        onClickThroughChange: (on) => assembly.onClickThroughChange?.(on),
         describeTool: assembly.describeTool,
         modelLanguage: () => assembly.modelLanguage?.() ?? 'zh',
         replyLanguage: () => assembly.replyLanguage?.() ?? null,

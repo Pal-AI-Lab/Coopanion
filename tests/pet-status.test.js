@@ -8,6 +8,9 @@ import { SIZE, scaleSlider, sizeEcho } from '../packages/cortico-world-desktop-p
 import { sameLook as realSameLook } from '../packages/cortico-world-desktop-pet/web/looks.js';
 import { restyle, springSize, swapIn, swapOut } from '../packages/cortico-world-desktop-pet/web/swap-motion.js';
 import { tipOf, tipWithoutNote } from '../packages/cortico-world-desktop-pet/web/hints.js';
+import { motionLevel, setMotionChoice, watchMotion } from '../packages/cortico-world-desktop-pet/web/motion-level.js';
+import { cssMs, growFrom } from '../packages/cortico-world-desktop-pet/web/motion-frames.js';
+import { showHide } from '../packages/cortico-world-desktop-pet/web/show-hide.js';
 
 const WEB = new URL('../packages/cortico-world-desktop-pet/web/', import.meta.url);
 const source = readFileSync(new URL('pet-app.js', WEB), 'utf8').replace(/^import .*;$/gm, '');
@@ -55,8 +58,9 @@ function page({ host = false, hash = '', speech = {}, sfx = {}, fetchLooks = asy
     SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut,
     // hover hints (hints.js) are not what these tests look at
     mountHints() {}, tipOf, tipWithoutNote,
+    motionLevel, setMotionChoice, watchMotion, cssMs, growFrom, showHide,
   };
-  win.eval(`const { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeBubble, stepWheel, stepSlider, stepFade, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
+  win.eval(`const { applyTheme, balancedWidth, clamp, f, ICONS, layBeside, tailAt, tailLine, linked, COO_CSS, mini, normalizeSkin, skinCss, createSfx, createSpeech, textSteps, loadBody, t, language, useLanguage, lightWall, dressFloor, modeButton, glowColor, setGlow, bindAppearance, announcePainted, createMic, runFrames, fetchLooks, lookAvailable, lookPicture, sameLook, SIZE, scaleSlider, sizeEcho, restyle, springSize, swapIn, swapOut, mountHints, tipOf, tipWithoutNote, motionLevel, setMotionChoice, watchMotion, cssMs, growFrom, showHide } = window.deps;\n${source}\nbody = window.deps.body; window.page = { onOrder, openInput, openMenu, closeMenu, closeBubble, stepLend, clicksPass, stepWheel, stepSlider, stepFade, cursor, step: (dt) => { T += dt; stepDialog(dt); stepTalkRead(dt); stepLines(); stepStatus(); layout(dt); }, interactive: () => bubble.matches(UI_SELECTOR), lines: () => lines, overUi: (el) => el.matches(UI_SELECTOR), REPLIED_FADE, UNANSWERED_FADE, MAX_LINES, LINE_FADE };`);
   return { ...win.page, bubble: win.document.querySelector('#bubble'), bodyChanges, doc: win.document, sockets, win };
 }
 
@@ -516,7 +520,7 @@ describe('look wheel over the dress button', () => {
     }
   });
 
-  it('leaves a slider being dragged over a dress button in place, without reading the favourites (the number of reads is the behavior)', async () => {
+  it('leaves a pinned slider in place over a dress button, dragged or let go, without reading the favourites (the number of reads is the behavior)', async () => {
     let reads = 0;
     const p = page({ host: true, fetchLooks: async () => { reads++; return [{ id: 'a', name: 'a', skin: {} }]; } });
     p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
@@ -529,12 +533,12 @@ describe('look wheel over the dress button', () => {
     await frames(p);
     expect(reads).toBe(0);
     expect(wheel(p).hidden).toBe(true);
-    // let go with the pointer still on the dress button: the row takes the slider's place
+    // let go with the pointer still on the dress button: the pinned slider keeps the place
     bar.dispatchEvent(new p.win.MouseEvent('pointerup', { clientX: 10, button: 0, bubbles: true }));
     await frames(p);
-    expect(reads).toBe(1);
-    expect(wheel(p).hidden).toBe(false);
-    expect(p.doc.querySelector('.head-slider[data-kind="size"]').classList.contains('leaving')).toBe(true);
+    expect(reads).toBe(0);
+    expect(wheel(p).hidden).toBe(true);
+    expect(p.doc.querySelector('.head-slider[data-kind="size"]').classList.contains('leaving')).toBe(false);
   });
 
   it('reads again when the pointer left while a bubble was showing', async () => {
@@ -619,6 +623,62 @@ describe('the size slider pinned by a click on its button', () => {
     button.click();
     expect(shown(p)).toBe(false);
   });
+
+  it('stays while the pointer crosses the transparency button, which takes the place only when clicked', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size', 'fade'] });
+    const size = p.doc.querySelector('#tools [data-action="size"]'), fade = p.doc.querySelector('#tools [data-action="fade"]');
+    // jsdom lays nothing out: the transparency button is placed by hand
+    Object.defineProperty(fade, 'offsetParent', { value: p.doc.body });
+    fade.getBoundingClientRect = () => ({ left: 100, right: 138, top: 100, bottom: 138 });
+    const fader = p.doc.querySelector('.head-slider[data-kind="fade"]');
+    size.click();
+    p.cursor.at = { x: 119, y: 119 };
+    for (let i = 0; i < 4; i++) { p.step(.2); p.stepSlider(); }
+    expect([shown(p), fader.hidden]).toEqual([true, true]);
+    fade.click();
+    expect([shown(p), fader.hidden, fade.classList.contains('on')]).toEqual([false, false, true]);
+  });
+
+  it('gives the place up at once to a confirmation, the pointer still on the pet', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    p.doc.querySelector('#tools [data-action="size"]').click();
+    p.cursor.at = { x: 450, y: 350 };
+    p.onOrder({ t: 'confirm', id: 'c', question: 'Go on?', options: ['Yes', 'No'] });
+    p.step(.1);
+    p.stepSlider();
+    expect([p.bubble.hidden, p.bubble.classList.contains('ask'), shown(p)]).toEqual([false, true, false]);
+  });
+
+  it('keeps the thinking bubble away while it shows, and brings it back once it goes if Coo still thinks', () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'], statusBubble: true });
+    const size = p.doc.querySelector('#tools [data-action="size"]');
+    size.click();
+    p.onOrder({ t: 'status', status: { kind: 'think', text: '' } });
+    p.step(1);
+    expect(p.bubble.hidden).toBe(true);
+    size.click();
+    p.step(.1);
+    expect([p.bubble.hidden, p.bubble.classList.contains('status')]).toEqual([false, true]);
+  });
+
+  it("holds back what Coo says while the pointer is on the pet's controls, and lets it take the place once the pointer is gone", () => {
+    const p = page({ host: true });
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    p.doc.querySelector('#tools [data-action="size"]').click();
+    // on the body, among the pet's controls
+    p.cursor.at = { x: 450, y: 350 };
+    p.onOrder({ t: 'say', id: 's', beats: [{ text: 'Later' }] });
+    p.step(1);
+    expect(p.bubble.hidden).toBe(true);
+    // the pointer gone, the line comes and the pinned slider gives way
+    p.cursor.at = { x: 900, y: 900 };
+    p.step(.1);
+    p.stepSlider();
+    expect([p.bubble.hidden, p.bubble.classList.contains('say'), shown(p)]).toEqual([false, true, false]);
+  });
 });
 
 describe('the size slider opened by hovering its button', () => {
@@ -661,7 +721,7 @@ describe('the transparency', () => {
   const sent = (p) => p.sockets.flatMap((s) => s.sent).filter((m) => m.t === 'prefs' || m.t === 'control');
   const key = (p, el, k) => el.dispatchEvent(new p.win.KeyboardEvent('keydown', { key: k, bubbles: true }));
 
-  it('fades the body and its bubbles to the setting on screen, the full screen one while it holds, and is opaque while the typing box is open', () => {
+  it('fades the body to the setting on screen, the full screen one while it holds, and keeps it while the typing box is open', () => {
     const p = desk();
     p.onOrder({ t: 'prefs', fade: 30, fullscreenFade: 60 });
     p.stepFade();
@@ -671,7 +731,7 @@ describe('the transparency', () => {
     expect(Number(opacity(p))).toBeCloseTo(.4);
     p.openInput();
     p.stepFade();
-    expect(Number(opacity(p))).toBe(1);
+    expect(Number(opacity(p))).toBeCloseTo(.4);
     p.closeBubble();
     p.fullscreen(false);
     p.stepFade();
@@ -739,13 +799,16 @@ describe('the sliders over the head, frame by frame', () => {
     expect(rest(p, { x: 20, y: 20 }, 1)).toEqual(['entering/leaving']);
   });
 
-  it('a slider pinned by a click gives the place up to the other kind hovered, unpinned, and each bar keeps its own range', () => {
+  it('a slider pinned by a click stays with the other kind hovered, gives the place up to it clicked, and each bar keeps its own range', () => {
     const p = desk();
-    const size = p.doc.querySelector('#tools [data-action="size"]');
+    const size = p.doc.querySelector('#tools [data-action="size"]'), fade = p.doc.querySelector('#tools [data-action="fade"]');
     size.click();
     expect(size.classList.contains('on')).toBe(true);
+    expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['entering/hidden']);
+    expect(size.classList.contains('on')).toBe(true);
+    fade.click();
     expect(rest(p, { x: 120, y: 20 }, 1)).toEqual(['leaving/entering']);
-    expect(size.classList.contains('on')).toBe(false);
+    expect([size.classList.contains('on'), fade.classList.contains('on')]).toEqual([false, true]);
     const max = (kind) => p.doc.querySelector(`.head-slider[data-kind="${kind}"] .pet-scale`).getAttribute('aria-valuemax');
     expect([max('size'), max('fade')]).toEqual(['10', '95']);
   });
@@ -934,6 +997,80 @@ describe('a countdown in the activity bubble', () => {
     pass(1.5);
     p.closeBubble(); pass(0);
     expect(p.bubble.textContent).toBe(`在等待 · ${t('status.seconds', { seconds: 2 })}`);
+  });
+});
+
+describe('click-through paused', () => {
+  const setup = async () => {
+    const lent = [];
+    const p = page({ host: { lendClicks: (on) => lent.push(on), clickThrough() {} } });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.sockets[0].onopen();
+    p.onOrder({ t: 'prefs', clickThrough: true, hoverButtons: ['chat', 'through'] });
+    return { p, lent };
+  };
+
+  it('the right-click menu opened while the key was held keeps clicks on the pet until it closes', async () => {
+    const { p, lent } = await setup();
+    expect(p.clicksPass()).toBe(true);
+    p.onOrder({ t: 'throughPause', on: true });
+    expect(lent).toEqual([true]);
+    p.openMenu();
+    p.onOrder({ t: 'throughPause', on: false });
+    p.stepLend();
+    expect([lent, p.clicksPass()]).toEqual([[true], false]);
+    p.closeMenu();
+    p.stepLend();
+    expect([lent, p.clicksPass()]).toEqual([[true, false], true]);
+  });
+
+  it('a lost connection lets go of a held key, whose release would never arrive', async () => {
+    const { p, lent } = await setup();
+    p.onOrder({ t: 'throughPause', on: true });
+    p.sockets[0].onclose({ code: 1006 });
+    p.stepLend();
+    expect(lent).toEqual([true, false]);
+  });
+
+  it('the click-through button in the menu turns it off and on through the World', async () => {
+    const { p } = await setup();
+    p.onOrder({ t: 'throughPause', on: true });
+    p.openMenu();
+    p.doc.querySelector('.menu .m-tile[data-action="through"]').click();
+    p.onOrder({ t: 'prefs', clickThrough: false });
+    p.doc.querySelector('.menu .m-tile[data-action="through"]').click();
+    expect(p.sockets[0].sent.filter((m) => 'clickThrough' in m)).toEqual([{ t: 'prefs', clickThrough: false }, { t: 'prefs', clickThrough: true }]);
+  });
+});
+
+describe('drawing the action buttons', () => {
+  it('keeps an unchanged icon, so a press on it still clicks when the button is redrawn before the release', async () => {
+    const p = page({ host: { clickThrough() {} } });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.sockets[0].onopen();
+    p.onOrder({ t: 'prefs', hoverButtons: ['size', 'sound'], sound: true });
+    const icon = (id) => p.doc.querySelector(`.tools [data-action="${id}"] .ic svg`);
+    const size = icon('size'), sound = icon('sound');
+    expect(size).not.toBeNull();
+    // the size slider opening redraws the button, as other prefs from the World redraw them all
+    p.onOrder({ t: 'prefs', scale: 1.2, sound: false });
+    expect(icon('size')).toBe(size);
+    expect(icon('sound')).not.toBe(sound);
+  });
+
+  it('the second click of a double click leaves a slider pinned by the first', async () => {
+    const p = page({ host: { clickThrough() {} } });
+    await expect.poll(() => p.sockets.length).toBe(1);
+    p.sockets[0].onopen();
+    p.onOrder({ t: 'prefs', hoverButtons: ['size'] });
+    const size = () => p.doc.querySelector('.tools [data-action="size"]');
+    const click = (detail) => size().dispatchEvent(new p.win.MouseEvent('click', { bubbles: true, detail }));
+    click(1);
+    expect(size().classList.contains('on')).toBe(true);
+    click(2);
+    expect(size().classList.contains('on')).toBe(true);
+    click(1);
+    expect(size().classList.contains('on')).toBe(false);
   });
 });
 

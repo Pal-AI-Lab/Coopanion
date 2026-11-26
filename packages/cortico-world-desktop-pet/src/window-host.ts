@@ -88,7 +88,13 @@ export class WindowHost {
     this.child = child;
     this.st = { phase: 'running', pid: child.pid ?? null, source: cmd.source, reason: null };
     const log = this.log.child('window');
-    const forward = (d: Buffer) => { for (const line of d.toString().split(/\r?\n/)) if (line.trim()) log.debug(line); };
+    // a line the window process starts with `[warn] ` (host/electron-main.cjs) is a warning
+    const forward = (d: Buffer) => {
+      for (const line of d.toString().split(/\r?\n/)) {
+        if (line.startsWith('[warn] ')) log.warn(line.slice('[warn] '.length));
+        else if (line.trim()) log.debug(line);
+      }
+    };
     child.stdout?.on('data', forward);
     child.stderr?.on('data', forward);
     child.on('error', (err) => {

@@ -243,6 +243,7 @@ const { CoreHost } = require('./core-host.cjs');
 const { configuredLanguage, systemLanguage, textOf } = require('./i18n/index.cjs');
 const { RELEASES_URL, canUpdate, startUpdater } = require('./updater.cjs');
 const { takeInstallerFailure } = require('./installer-events.cjs');
+const { watchRenderer } = require(require.resolve('cortico-world-desktop-pet/host/renderer-gone.cjs'));
 /** Steam updates its build, and the portable one is updated by hand: only the others run the updater. */
 const SELF_UPDATE = !STEAM && !PORTABLE && canUpdate();
 
@@ -516,6 +517,7 @@ function openSettings(path = '') {
   settings.once('ready-to-show', () => bringForward(settings));
   settings.on('page-title-updated', (e) => e.preventDefault());
   keepOnConsole(settings.webContents);
+  watchRenderer(settings.webContents, { name: '设置窗口', log: (line) => core.warn(line) });
   const win = settings;
   let closing = false;
   win.on('close', () => {
@@ -595,7 +597,8 @@ function noteAutostart() {
 
 /**
  * The tray's "click through": every click passes through the pet, which still shows, walks and talks
- * (for a game under it). It lasts for this run of the app and is sent again to a restarted Core.
+ * (for a game under it). The pet's own button sets it too, and the Core says so on `click-through`.
+ * It lasts for this run of the app and is sent again to a restarted Core.
  */
 let clickThrough = false;
 function setClickThrough(on) {
@@ -621,6 +624,7 @@ async function togglePet() {
 // the Core says when the pet window comes onto the desktop or leaves it, from wherever (its menu, the settings
 // window, the tray): the show/hide entry follows, which matters on Linux, where the menu is set beforehand
 core.on('pet-shown', (shown) => { petOnDesktop = shown; refreshTray(); });
+core.on('click-through', (on) => { if (on !== clickThrough) { clickThrough = on; refreshTray(); } });
 
 function trayItems() {
   const t = T(), running = core.state === 'running';

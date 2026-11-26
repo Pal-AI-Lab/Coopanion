@@ -54,6 +54,14 @@ const ptBR: Translation<PetText> = {
     linuxNoX11: 'A tecla para digitar não consegue se conectar à tela do X11',
     unsupported: 'A tecla para digitar só funciona no Windows, macOS e Linux',
   },
+  throughPauseKey: {
+    macNoKey: 'O teclado do Mac não tem essa tecla; escolha outra tecla para pausar a travessia dos cliques',
+    linuxNoKey: 'O Linux não consegue ler essa tecla (os botões laterais do mouse não funcionam); escolha outra tecla para pausar a travessia dos cliques',
+    linuxNoDisplay: 'A tecla para pausar a travessia dos cliques precisa do X11 (ou XWayland) no Linux: DISPLAY não está definido',
+    linuxNoX11: 'A tecla para pausar a travessia dos cliques não consegue se conectar à tela do X11',
+    unsupported: 'A tecla para pausar a travessia dos cliques só funciona no Windows, macOS e Linux',
+    sharesTalk: 'É pressionada como a tecla para falar: segurá-la também começa a ouvir; troque uma das duas',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Reconhecimento de Fala do Windows (${culture})` : 'Reconhecimento de Fala do Windows'),
@@ -181,7 +189,7 @@ const ptBR: Translation<PetText> = {
     theme: { dark: 'mudar para a aparência de noite', light: 'mudar para a aparência de dia' },
     hover: (list: string) => `trocar os botões ao passar o mouse para ${list}`,
     hoverNone: 'tirar todos os botões ao passar o mouse',
-    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', fade: "Transparência", dress: 'Guarda-roupa', cua: "Uso do computador", hide: 'Ocultar o pet', worlds: 'Meus Worlds' },
+    actions: { chat: 'Digitar', voice: 'Entrada de voz', roam: 'Passeios', theme: 'Modo noturno', sound: 'Sons', size: 'Tamanho', fade: "Transparência", dress: 'Guarda-roupa', cua: "Uso do computador", hide: 'Ocultar o pet', through: 'Cliques atravessam', worlds: 'Meus Worlds' },
     user: (to: string) => `chamar você de “${to}”`,
   },
 
@@ -242,7 +250,8 @@ const ptBR: Translation<PetText> = {
     glow: { title: 'Brilho externo', description: 'Quantos pixels o brilho claro em volta do pet alcança quando as cores do Coo se parecem com o fundo; 0 desliga.' },
     frameRate: { title: 'Taxa de quadros', description: 'Quadros por segundo enquanto o pet anda ou pula, ou enquanto você carrega o pet; 0 segue a tela. Acima da taxa de atualização da tela, vale a da tela. A página Hábitos oferece 60, 120, 144 e Sem limite.' },
     lockFrameRate: { title: 'Travar taxa de quadros', description: 'Desenha o pet nessa taxa também em repouso. Desligado, cai para 30 quadros por segundo quando está em pé, na posição sentada ou dormindo.' },
-    fade: { title: "Transparência", description: "O quanto o pet e seus balões ficam transparentes: 0 é opaco, até 95%, de 5% em 5%. O pet volta a ficar opaco enquanto a caixa de texto, uma pergunta ou uma confirmação está aberta, e enquanto você o carrega." },
+    motion: { title: "Movimento", description: "Quanto a interface se mexe, na janela de configurações e na do pet: system segue a configuração do sistema de reduzir movimento (low se ela pede menos, high se não), low deixa só as mudanças de cor e os indicadores de carregamento, medium tira os quiques e o movimento decorativo, high mantém tudo. O movimento do Coo não muda; veja roam." },
+    fade: { title: "Transparência", description: "O quanto o pet fica transparente: 0 é opaco, até 95%, de 5% em 5%." },
     hideWhenFullscreen: { title: 'Ocultar em tela cheia', description: 'Ligado, o pet se esconde enquanto a janela em primeiro plano ocupa toda a tela onde o pet está (um jogo, um vídeo em tela cheia, um navegador em tela cheia) e volta quando a tela cheia termina; uma janela maximizada não conta. Desligado, fica sempre por cima.' },
     passWhenFullscreen: { title: "Deixar os cliques atravessarem em tela cheia", description: "Ligado, enquanto a janela em primeiro plano ocupa toda a tela do Coo, o Coo continua visível e cada clique o atravessa até a janela de baixo, até a tela cheia terminar; uma janela maximizada não conta. Com \"Ocultar em tela cheia\" também ligado, o Coo se esconde." },
     fadeWhenFullscreen: { title: "Esmaecer em tela cheia", description: "Ligado, enquanto a janela em primeiro plano ocupa toda a tela do Coo, a transparência em tela cheia substitui a de sempre, até a tela cheia terminar; uma janela maximizada não conta." },
@@ -250,7 +259,7 @@ const ptBR: Translation<PetText> = {
     overTaskbar: { title: "Mostrar sobre a barra de tarefas", description: "Ligado, a janela do pet desce por cima da barra de tarefas na parte inferior da tela, e o que uma figura desenha abaixo do chão (as pernas penduradas ao sentar) aparece sobre a barra de tarefas; desligado, a janela termina na borda superior da barra de tarefas." },
     hideFromCapture: { title: "Não aparecer em capturas e gravações", description: "Enquanto ligado, o Coo não aparece em capturas de tela, gravações de tela, transmissões ao vivo nem nas capturas feitas pelo Coo. Enquanto ligado, a captura da área de trabalho do Replay Instantâneo da NVIDIA pode não ligar." },
     exportOverlay: { title: 'Overlay do OBS', description: 'Serve a imagem da janela do pet com fundo transparente em /overlay para uma fonte “Navegador” do OBS; desligado, nada é servido.' },
-    electronFile: { title: 'Executável do Electron', description: 'Vazio usa CORTICO_DESKTOP_PET_HOST e depois o ambiente instalado pelo painel.' },
+    electronFile: { title: 'Executável do Electron', description: 'Usado quando CORTICO_DESKTOP_PET_HOST não está definido; vazio usa o ambiente instalado pelo painel. O Coopanion o define e abre a janela do pet por conta própria, então no Coopanion esta opção não tem efeito.' },
     port: { title: 'Porta da página', description: 'Se estiver ocupada, passa para a próxima porta livre.' },
     touchEnabled: { title: 'Toques viram eventos', description: 'Cutucadas, carinho, e pegar e arremessar o pet.' },
     touchWakeOn: { title: 'Modo de resposta', description: 'poke: só um cutucão recebe resposta na hora; os outros toques esperam a próxima resposta. all: todo toque recebe resposta na hora. none: todo toque espera a próxima resposta. custom: os toques marcados na página Hábitos recebem resposta na hora. Depois de uma resposta, os toques até o fim desse turno esperam a próxima.' },

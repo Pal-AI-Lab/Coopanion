@@ -17,7 +17,7 @@ import type { WebUi } from 'cortico/web/shared/client-panel.ts';
 import type { SessionStat } from './protocol.ts';
 import { S } from './strings.ts';
 import { overflowPopover } from '../../../base/ui/overflow-popover.ts';
-import { prefersStill } from '../../../base/motion.ts';
+import { motionLevel, slideFrom } from '../../../base/motion.ts';
 
 export interface SessionBandDeps {
   ui: WebUi;
@@ -128,9 +128,9 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
     return card;
   };
 
-  const reduced = (): boolean => prefersStill(view);
+  const reduced = (): boolean => motionLevel(view) === 'low';
 
-  /** 量出放得下几张,摆好;`animate` 时已在场的卡从旧位置滑到新位置,新来的淡入。 */
+  /** 量出放得下几张,摆好;`animate` 时已在场的卡从旧位置滑到新位置(中档改为淡入),新来的淡入。 */
   const layout = (animate: boolean): void => {
     const focused = el.contains(doc.activeElement) ? doc.activeElement as HTMLElement : null;
     const before = new Map<string, number>();
@@ -193,10 +193,7 @@ export function createSessionBand(deps: SessionBandDeps): SessionBand {
       if (from === undefined) {
         x.card.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
       } else if (Math.abs(from - to) > 0.5) {
-        x.card.animate?.(
-          [{ transform: `translateX(${from - to}px)` }, { transform: 'none' }],
-          { duration: 260, easing: 'cubic-bezier(.3, .7, .2, 1)' },
-        );
+        slideFrom([[x.card, from - to, 0]], { duration: 260, easing: 'cubic-bezier(.3, .7, .2, 1)', medium: 'fade', axis: 'x' });
       }
     }
   };

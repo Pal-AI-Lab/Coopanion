@@ -54,6 +54,14 @@ const ko: Translation<PetText> = {
     linuxNoX11: '입력 키가 X11 디스플레이에 연결할 수 없습니다',
     unsupported: '입력 키는 Windows, macOS, Linux에서만 작동합니다',
   },
+  throughPauseKey: {
+    macNoKey: 'Mac 키보드에는 이 키가 없습니다. 다른 클릭 통과 일시 중지 키를 선택하세요',
+    linuxNoKey: 'Linux에서는 이 키를 읽을 수 없습니다(마우스 측면 버튼은 작동하지 않음). 다른 클릭 통과 일시 중지 키를 선택하세요',
+    linuxNoDisplay: '클릭 통과 일시 중지 키를 Linux에서 쓰려면 X11(또는 XWayland)이 필요합니다. DISPLAY가 설정되어 있지 않습니다',
+    linuxNoX11: '클릭 통과 일시 중지 키가 X11 디스플레이에 연결할 수 없습니다',
+    unsupported: '클릭 통과 일시 중지 키는 Windows, macOS, Linux에서만 작동합니다',
+    sharesTalk: '말하기 키와 누르는 방식이 같습니다. 누르고 있으면 듣기도 시작됩니다. 둘 중 하나를 바꾸세요',
+  },
 
   system: {
     name: (culture: string) => (culture ? `Windows 음성 인식(${culture})` : 'Windows 음성 인식'),
@@ -181,7 +189,7 @@ const ko: Translation<PetText> = {
     theme: { dark: '야간 모습으로 바꾸기', light: '주간 모습으로 바꾸기' },
     hover: (list: string) => `호버 버튼을 ${list}(으)로 바꾸기`,
     hoverNone: '호버 버튼을 모두 없애기',
-    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', fade: "투명도", dress: '꾸미기', cua: "컴퓨터 사용", hide: '펫 숨기기', worlds: '내 World' },
+    actions: { chat: '입력', voice: '음성 입력', roam: '걷기', theme: '야간 모드', sound: '효과음', size: '크기', fade: "투명도", dress: '꾸미기', cua: "컴퓨터 사용", hide: '펫 숨기기', through: '클릭 통과', worlds: '내 World' },
     user: (to: string) => `'${to}'(이)라고 부르기`,
   },
 
@@ -242,7 +250,8 @@ const ko: Translation<PetText> = {
     glow: { title: '외곽 빛', description: '펫과 뒤 배경의 색이 비슷할 때 몸 주위에 생기는 옅은 빛이 몇 픽셀 퍼지는지. 0이면 꺼짐.' },
     frameRate: { title: '프레임 레이트', description: '펫이 걷거나, 들려 있거나, 점프할 때 초당 그리는 프레임 수입니다. 0이면 디스플레이를 따릅니다. 디스플레이 주사율보다 높으면 디스플레이 주사율이 적용됩니다. 습관 페이지에서는 60, 120, 144, 무제한 중에서 고를 수 있습니다.' },
     lockFrameRate: { title: '프레임 레이트 고정', description: '가만히 있을 때도 프레임 레이트대로 펫을 그립니다. 끄면 서 있거나, 앉아 있거나, 잠든 동안 초당 30프레임으로 낮춥니다.' },
-    fade: { title: "투명도", description: "펫과 말풍선이 비치는 정도입니다. 0은 불투명하고 최대 95%까지 5% 단위로 정합니다. 입력창, 질문, 확인 창이 열려 있을 때와 펫을 들고 있을 때는 불투명해집니다." },
+    motion: { title: "움직임 효과", description: "설정 창과 펫 창이 얼마나 움직이는지 정합니다. system은 시스템의 동작 줄이기 설정을 따르고(줄이기를 요청하면 low, 아니면 high), low는 색 변화와 로딩 표시만 남기며, medium은 튀는 효과와 장식용 움직임을 빼고, high는 모두 남깁니다. Coo의 움직임은 바뀌지 않습니다(roam 참고)." },
+    fade: { title: "투명도", description: "펫이 비치는 정도입니다. 0은 불투명하고 최대 95%까지 5% 단위로 정합니다." },
     hideWhenFullscreen: { title: '전체 화면일 때 숨기기', description: '켜면 앞에 있는 창이 펫이 있는 화면을 가득 채우는 동안(게임, 전체 화면 동영상, 전체 화면 브라우저) 펫을 숨기고, 전체 화면이 끝나면 다시 보여 줍니다. 최대화된 창은 해당하지 않습니다. 끄면 항상 맨 위에 떠 있습니다.' },
     passWhenFullscreen: { title: "전체 화면일 때 클릭이 Coo를 통과", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 Coo는 그대로 보이고 모든 클릭은 Coo를 지나 아래 창으로 전달되며, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다. 전체 화면일 때 숨기기도 켜져 있으면 Coo는 숨습니다." },
     fadeWhenFullscreen: { title: "전체 화면일 때 흐리게", description: "켜면 앞에 있는 창이 Coo가 있는 화면을 가득 채우는 동안 「전체 화면일 때 투명도」로 바뀌고, 전체 화면이 끝나면 원래대로 돌아옵니다. 최대화된 창은 해당하지 않습니다." },
@@ -250,7 +259,7 @@ const ko: Translation<PetText> = {
     overTaskbar: { title: "작업 표시줄 위에 표시", description: "켜면 펫 창이 화면 아래쪽 작업 표시줄 위까지 내려가, 피규어가 바닥 아래에 그리는 부분(앉았을 때 늘어뜨린 다리)이 작업 표시줄 위에 표시됩니다. 끄면 창이 작업 표시줄 위쪽 가장자리에서 끝납니다." },
     hideFromCapture: { title: "스크린샷과 녹화에 나오지 않기", description: "켜져 있는 동안 Coo는 스크린샷, 화면 녹화, 방송, Coo가 찍는 스크린샷에 나오지 않습니다. 켜져 있는 동안 NVIDIA 인스턴트 리플레이의 데스크톱 캡처가 켜지지 않을 수 있습니다." },
     exportOverlay: { title: 'OBS 오버레이', description: '펫 창의 화면을 투명 배경으로 /overlay에 제공해 OBS의 「브라우저」 소스에서 쓸 수 있게 합니다. 끄면 제공하지 않습니다.' },
-    electronFile: { title: 'Electron 실행 파일', description: '비워 두면 CORTICO_DESKTOP_PET_HOST를 쓰고, 없으면 패널에서 설치한 런타임을 씁니다.' },
+    electronFile: { title: 'Electron 실행 파일', description: 'CORTICO_DESKTOP_PET_HOST가 설정되지 않았을 때 씁니다. 비워 두면 패널에서 설치한 런타임을 씁니다. Coopanion은 이를 설정하고 펫 창을 직접 띄우므로 Coopanion에서는 이 항목이 적용되지 않습니다.' },
     port: { title: '페이지 포트', description: '사용 중이면 다음 빈 포트로 올라갑니다.' },
     touchEnabled: { title: '터치를 이벤트로 전달', description: '찌르기, 쓰다듬기, 들어 올려 던지기.' },
     touchWakeOn: { title: '반응 모드', description: 'poke: 찌를 때만 바로 반응하고, 나머지 터치는 다음 반응 때 함께 전달됩니다. all: 모든 터치에 바로 반응합니다. none: 모든 터치가 다음 반응 때 함께 전달됩니다. custom: 「습관」 페이지에서 체크한 터치에 바로 반응합니다. 한 번 반응한 뒤 그 차례가 끝날 때까지의 터치는 다음 반응 때 함께 전달됩니다.' },

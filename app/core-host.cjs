@@ -25,7 +25,7 @@
 const { fork } = require('node:child_process');
 const { coreEnvironment, lookupProxy, proxySource } = require('./core-env.cjs');
 const { EventEmitter } = require('node:events');
-const { createWriteStream, existsSync, mkdirSync, renameSync, statSync } = require('node:fs');
+const { appendFileSync, createWriteStream, existsSync, mkdirSync, renameSync, statSync } = require('node:fs');
 const { join } = require('node:path');
 
 const CRASH_WINDOW_MS = 5 * 60_000;
@@ -79,6 +79,8 @@ class CoreHost extends EventEmitter {
     this.blocked = null;
     /** Exit code or signal of the last child that exited unasked, not yet handed to a new one. */
     this.unexpectedExit = null;
+    /** core.log while a child writes to it. */
+    this.log = null;
     this.state = 'stopped';
   }
 
@@ -89,6 +91,7 @@ class CoreHost extends EventEmitter {
     const logFile = join(this.opts.logDir, 'core.log');
     if (existsSync(logFile) && statSync(logFile).size > LOG_ROTATE_BYTES) renameSync(logFile, join(this.opts.logDir, 'core.old.log'));
     const log = createWriteStream(logFile, { flags: 'a' });
+    this.log = log;
     log.write(`\n===== ${new Date().toISOString()} start =====\n${proxySource(this.opts.env)}\n`);
     const child = fork(join(this.opts.appRoot, 'core', 'boot.ts'), [], {
       cwd: this.opts.appRoot,
@@ -147,6 +150,8 @@ class CoreHost extends EventEmitter {
         this.emit('hide');
       } else if (msg?.type === 'companion:pet-shown' && typeof msg.shown === 'boolean') {
         this.emit('pet-shown', msg.shown);
+      } else if (msg?.type === 'companion:click-through' && typeof msg.on === 'boolean') {
+        this.emit('click-through', msg.on);
       } else if (msg?.type === 'companion:quit') {
         this.emit('quit');
       } else if (msg?.type === 'companion:update-install') {
@@ -230,6 +235,17 @@ class CoreHost extends EventEmitter {
   /** The shutdown request did not reach the child, so a later exit is a crash again. */
   forgetStop() {
     this.shutdownAsked = false;
+  }
+
+  /** Writes a warning of the app process into core.log, between the Core's lines while a child runs. */
+  warn(line) {
+    const now = new Date();
+    const text = `[${now.toTimeString().slice(0, 8)}.${String(now.getMilliseconds()).padStart(3, '0')}] WARN  app: ${line}\n`;
+    if (this.log?.writable) this.log.write(text);
+    else {
+      mkdirSync(this.opts.logDir, { recursive: true });
+      appendFileSync(join(this.opts.logDir, 'core.log'), text);
+    }
   }
 
   /** Sends a message to the running child; dropped while there is none. */

@@ -16,7 +16,7 @@
 .home-keyrow input { width: 100%; }
 .home-keyrow > .btn { flex: none; height: 40px; }
 @media (max-width: 640px) { .home-picker { grid-template-columns: 1fr; } .home-pickerlabel { padding-top: 0; } .home-keyrow { flex-wrap: wrap; } }
-.home-vendor { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.home-vendor { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border: 1px solid var(--border); border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; cursor: pointer; transition: border-color var(--motion-fast), background var(--motion-fast), color var(--motion-fast); }
 .home-vendor[hidden] { display: none; }
 .home-vendor:hover { border-color: var(--ink-dim); color: var(--foreground); }
 .home-vendor.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--foreground); }
@@ -41,11 +41,11 @@
 .companion-control > .check, .companion-switchbox > .check { gap: 10px; font-size: 14px; }
 .companion-control > .check > input, .companion-switchbox > .check > input {
   appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px;
-  background: var(--line-2); cursor: pointer; transition: background .15s;
+  background: var(--line-2); cursor: pointer; transition: background var(--motion-fast);
 }
 .companion-control > .check > input::after, .companion-switchbox > .check > input::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / .3); transition: transform .15s;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .3); transition: transform var(--motion-fast);
 }
 .companion-control > .check > input:checked, .companion-switchbox > .check > input:checked { background: var(--accent); }
 .companion-control > .check > input:checked::after, .companion-switchbox > .check > input:checked::after { transform: translateX(14px); }
@@ -88,7 +88,7 @@
    balanced lines under its icon (the button's tooltip has it whole), and the room for two keeps the icons in a row level */
 .companion-hoverpick { display: grid; grid-template-columns: repeat(auto-fill, 84px); gap: 12px 8px; padding-top: 2px; }
 .companion-hoverbtn { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 84px; padding: 0; border: 0; background: none; color: var(--ink-soft); font: inherit; cursor: pointer; }
-.companion-hoverbtn svg { box-sizing: content-box; width: 20px; height: 20px; padding: 10px; border-radius: 50%; border: 1.5px dashed var(--line-2); transition: background .15s, border-color .15s, color .15s; }
+.companion-hoverbtn svg { box-sizing: content-box; width: 20px; height: 20px; padding: 10px; border-radius: 50%; border: 1.5px dashed var(--line-2); transition: background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast); }
 .companion-hoverbtn:hover:not(:disabled) svg { border-color: var(--ink-dim); color: var(--foreground); }
 .companion-hoverbtn.on svg { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 .companion-hoverbtn.on .companion-hoverlbl { color: var(--foreground); }
@@ -136,9 +136,12 @@
 .companion-row:has(> .companion-control > div:first-child > .check:first-child) { align-items: start; }
 
 /* 桌宠页面画好之前不露出来,画好后淡入(frame-reveal.ts),打开「开始」「装扮」时不再黑白闪一下 */
-.home-petframe, .companion-dressframe { transition: opacity .2s ease; }
+.home-petframe, .companion-dressframe { transition: opacity var(--motion-base) ease; }
 .home-petframe.companion-frame-pending, .companion-dressframe.companion-frame-pending { opacity: 0; transition: none; }
 
+/* 「动态效果」那一行:分段控件和「跟随系统」开关并排,彼此垂直居中;整行仍按文字基线和左栏名称对齐(分段控件有文字基线) */
+.companion-switchbox.companion-motion { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; }
+.companion-row:has(> .companion-control > .companion-switchbox.companion-motion:first-child) { align-items: baseline; }
 /* 「气泡」最后一行的示例:限宽,不随页面拉满;最宽是舞台(bubble-preview.ts STAGE_PX,写在 --pv-stage)加边框 */
 .companion-row:has(.bubble-preview) { align-items: start; }
 .bubble-preview { width: min(100%, calc(var(--pv-stage, 440px) + 2px)); }
@@ -147,6 +150,8 @@
 .bubble-preview-stage {
   --pv-surface: var(--sheet); --pv-ink: var(--foreground); --pv-eye: var(--accent);
   --pv-said: color-mix(in srgb, var(--foreground) 9%, var(--sheet)); --pv-shadow: rgb(0 0 0 / .12);
+  /* the pet's pop (pet.css --motion-pop); below full motion it does not overshoot */
+  --pv-pop: cubic-bezier(.3, 1.5, .5, 1);
   position: absolute; left: 0; top: 0; overflow: hidden;
   transform: scale(var(--pv-scale, 1)); transform-origin: 0 0; font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif; color: var(--pv-ink);
 }
@@ -160,10 +165,10 @@
 .pv-bubble { position: absolute; box-sizing: border-box; width: max-content; min-width: calc(58px * var(--bubble-size, 1)); max-width: min(calc(300px * var(--bubble-size, 1)), calc(100% - 2 * var(--pv-edge)));
   padding: calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius: calc(18px * var(--bubble-size, 1));
   background: var(--pv-surface); border: 2.5px solid var(--pv-ink); box-shadow: 0 8px 22px var(--pv-shadow);
-  font-size: calc(14.5px * var(--bubble-font, 1)); line-height: 1.55; transition: opacity .4s ease, border-color .15s; transform-origin: var(--tail, 50%) calc(100% + 10px * var(--bubble-size, 1)); }
+  font-size: calc(14.5px * var(--bubble-font, 1)); line-height: 1.55; transition: opacity .4s ease, border-color var(--motion-fast); transform-origin: var(--tail, 50%) calc(100% + 10px * var(--bubble-size, 1)); }
 .pv-bubble[hidden] { display: none; }
 .pv-bubble.is-fading { opacity: 0; pointer-events: none; }
-.pv-bubble.pop { animation: pv-bubble-in .26s cubic-bezier(.3, 1.5, .5, 1); }
+.pv-bubble.pop { animation: pv-bubble-in var(--motion-slow) var(--pv-pop); }
 @keyframes pv-bubble-in { from { transform: scale(.5); opacity: 0; } }
 .pv-say::before, .pv-say::after, .pv-status::before, .pv-status::after { content: ""; position: absolute; left: calc(var(--tail, 50%) - 13.5px); bottom: -11px; width: 22px; height: 11.5px; scale: var(--bubble-size, none); transform-origin: 11px 0; }
 .pv-say::before, .pv-status::before { background: var(--pv-ink); clip-path: path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); }
@@ -189,4 +194,6 @@
 .pv-status[data-kind="think"] circle:nth-child(3) { animation-delay: .32s; }
 @keyframes pv-think { 0%, 60%, 100% { transform: none; opacity: .45; } 30% { transform: translateY(-3px); opacity: 1; } }
 .pv-status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { .pv-bubble { transition: none; } .pv-status circle { animation: none; } }
+/* motion levels, as on the pet: below full motion the pop does not overshoot; at low motion (styles.css) the bubbles
+   only appear and go, and the thinking dots keep going */
+:where(:root:not([data-motion="high"])) .bubble-preview-stage { --pv-pop: var(--motion-out); }
