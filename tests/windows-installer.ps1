@@ -15,6 +15,9 @@ $uninstaller = Join-Path $install 'Uninstall Coopanion.exe'
 $installId = '3b83e019-1b4f-5c03-b0be-fa5cc2dfe27a'
 $installKey = "HKCU:\Software\$installId"
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\$installId"
+$desktop = [Environment]::GetFolderPath('DesktopDirectory')
+$shortcut = Join-Path $desktop 'Coopanion.lnk'
+$user = '*' + [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 
 function Install([switch]$QuoteDirectory, [switch]$Manual) {
     $directoryArgument = "/D=$install"
@@ -76,8 +79,16 @@ try {
             }
         } 'The failed restart update held the installer lock while showing its error dialog.'
         Remove-Item -LiteralPath $state
-        # Node's Windows spawn quotes the /D argument when the path contains spaces.
-        Assert-Exit (Install -QuoteDirectory) $true
+        # A desktop that refuses the shortcut leaves the fresh install complete.
+        icacls $desktop /deny "${user}:(WD)" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'The desktop fixture could not deny new files.' }
+        try {
+            # Node's Windows spawn quotes the /D argument when the path contains spaces.
+            Assert-Exit (Install -QuoteDirectory) $true
+        } finally {
+            icacls $desktop /remove:d $user | Out-Null
+        }
+        if (Test-Path -LiteralPath $shortcut) { throw 'The desktop fixture did not refuse the shortcut.' }
         if ($failedSetup.HasExited) { throw 'The retry did not run while the error dialog was open.' }
     } finally {
         if (-not $failedSetup.HasExited) { Stop-Process -InputObject $failedSetup }
