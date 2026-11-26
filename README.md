@@ -216,7 +216,7 @@ Open the settings window from the tray icon or from Coo's right-click menu.
 | Chat | Conversation history, typing, images |
 | World extensions | Installed Worlds, groups and order, the extension market |
 
-In **Usage & cost → By World**, a shared request’s tokens and cost are split among its sources. Each participating World counts one call. Usage without a World source appears under **Unattributed**.
+In **Usage & cost → By World**, a shared request’s tokens and cost are split among its sources. Each participating World counts one call. Usage without a World source appears under **Unattributed**. The usage time series can be split by World at any granularity; call counts cannot, because one call can count for several Worlds.
 
 **Motion** under Habits → Display sets how much the settings window and the pet animate, both at once: High keeps everything; Medium drops bounces and decorative flourishes, and lists that reorder fade instead of sliding; Low keeps only colour changes and the signs that something is under way (spinners, progress bars, thinking dots), and everything else lands at once. It follows the system's reduce-motion setting by default: Low when the system asks for less motion, High otherwise. Coo's own walking is not affected.
 
