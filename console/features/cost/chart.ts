@@ -365,15 +365,15 @@ function barPath(x: number, y: number, w: number, h: number, rt: number, rb: num
 /** 成本、token 与调用次数的堆叠柱图；SVG 统一处理 hover 与离开事件。 */
 export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptions): void {
   const { doc, ui, box, legend, tip, color } = deps;
-  box.replaceChildren();
-  legend.replaceChildren();
+  const legendItems = doc.createDocumentFragment();
 
   const series = d.series || [];
   const unit: UsageBucketUnit = d.bucket || 'day';
   const cur = d.currency || 'USD';
   const metric = opts.metric;
   if (!series.length) {
-    box.appendChild(ui.placeholder(S.noCalls));
+    box.replaceChildren(ui.placeholder(S.noCalls));
+    legend.replaceChildren();
     return;
   }
 
@@ -403,7 +403,7 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
       const sw = ui.h('span', 'legsw');
       sw.style.background = colorOf[compId(comp)] ?? '';
       it.append(sw, ui.h('span', 'leglbl', compLabel(d, comp)));
-      legend.appendChild(it);
+      legendItems.appendChild(it);
     }
   }
 
@@ -572,5 +572,6 @@ export function renderChart(deps: ChartDeps, d: UsageAggregate, opts: ChartOptio
   svg.addEventListener('mousemove', point);
   svg.addEventListener('click', point);
   svg.addEventListener('mouseleave', leave);
-  box.append(band, svg, spot);
+  box.replaceChildren(band, svg, spot);
+  legend.replaceChildren(legendItems);
 }

@@ -297,13 +297,13 @@ export function mountUsage(ctx: PageContext): void {
     const calls = state.metric === 'calls';
     for (const { dim, btn } of splitBtns) if (dim === 'type') btn.disabled = calls;
     if (!state.data) return;
-    const unpriced = state.data.totals?.unpricedCalls || 0;
-    mainNote.textContent = state.metric === 'cost' && unpriced > 0 ? S.compUnpriced(unpriced) : '';
     renderChart(
       { doc, ui, box: mainBox, legend: mainLegend, tip, color },
       state.data,
       { metric: state.metric, dims: state.splitDims, allowType: !calls, sort: state.sortByShare },
     );
+    const unpriced = state.data.totals?.unpricedCalls || 0;
+    mainNote.textContent = state.metric === 'cost' && unpriced > 0 ? S.compUnpriced(unpriced) : '';
   }
 
   function renderCards(d: UsageAggregate): void {
@@ -357,7 +357,6 @@ export function mountUsage(ctx: PageContext): void {
 
   /** 一条横条加图例；没有已知成本时整行收起，原因写在图下。 */
   function renderComposition(d: UsageAggregate): void {
-    compBox.replaceChildren();
     const cur = d.currency || 'USD';
     const t: Partial<UsageGroupStat> = d.totals || {};
     const total = t.cost || 0;
@@ -400,7 +399,7 @@ export function mountUsage(ctx: PageContext): void {
       );
       leg.appendChild(it);
     }
-    compBox.append(ui.h('span', 'ulabel', S.compTitle), bar, leg);
+    compBox.replaceChildren(ui.h('span', 'ulabel', S.compTitle), bar, leg);
   }
 
   /**
