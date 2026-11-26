@@ -287,7 +287,7 @@ export default {
     overTaskbar: { title: "显示在任务栏上", description: "开着时桌宠窗口向下盖住屏幕底部的任务栏，形象绘制在地面以下的部分（坐下时垂下的腿）显示在任务栏上；关着时窗口到任务栏上沿为止。" },
     hideFromCapture: { title: "不出现在截图和录屏里", description: "开着时 Coo 不出现在截图、录屏、直播和 Coo 自己的截屏里。开着时 NVIDIA 即时重放的桌面捕获可能无法开启。" },
     exportOverlay: { title: 'OBS 画面', description: '在 /overlay 提供桌宠窗口的透明画面，供 OBS「浏览器」来源使用；关闭时不提供。' },
-    electronFile: { title: 'Electron 程序', description: '留空时依次用 CORTICO_DESKTOP_PET_HOST 和面板里安装的运行时。' },
+    electronFile: { title: 'Electron 程序', description: '没有设置 CORTICO_DESKTOP_PET_HOST 时使用，留空则使用面板里安装的运行时。Coopanion 设置了它，自己启动桌宠窗口，这一项在 Coopanion 里不生效。' },
     port: { title: '页面端口', description: '被占用时向上顺延。' },
     touchEnabled: { title: '互动发成事件', description: '戳、摸、拎起来甩出去。' },
     touchWakeOn: { title: '回应模式', description: 'poke：只有戳一下马上回应，其余互动等下次回应时一并送达；all：所有互动都马上回应；none：所有互动都等下次回应时一并送达；custom：按「习惯」页勾选的互动马上回应。一次互动得到回应之后、本轮结束之前的互动，都等下次回应时一并送达。' },

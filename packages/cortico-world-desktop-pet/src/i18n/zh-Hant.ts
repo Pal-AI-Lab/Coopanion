@@ -259,7 +259,7 @@ const zhHant: Translation<PetText> = {
     overTaskbar: { title: "顯示在工作列上", description: "開啟時桌寵視窗向下蓋住螢幕底部的工作列，形象繪製在地面以下的部分（坐下時垂下的腿）顯示在工作列上；關閉時視窗到工作列上緣為止。" },
     hideFromCapture: { title: "不出現在截圖和錄影裡", description: "開啟時 Coo 不出現在截圖、螢幕錄影、直播和 Coo 自己的截圖裡。開啟時 NVIDIA 即時重播的桌面擷取可能無法開啟。" },
     exportOverlay: { title: 'OBS 畫面', description: '在 /overlay 提供桌寵視窗的透明畫面，供 OBS「瀏覽器」來源使用；關閉時不提供。' },
-    electronFile: { title: 'Electron 程式', description: '留空時依序使用 CORTICO_DESKTOP_PET_HOST 和面板裡安裝的執行環境。' },
+    electronFile: { title: 'Electron 程式', description: '沒有設定 CORTICO_DESKTOP_PET_HOST 時使用，留空則使用面板裡安裝的執行環境。Coopanion 設定了它，自己啟動桌寵視窗，這一項在 Coopanion 裡不生效。' },
     port: { title: '頁面連接埠', description: '被佔用時往上順延到下一個空的連接埠。' },
     touchEnabled: { title: '互動送成事件', description: '戳、摸、拎起來甩出去。' },
     touchWakeOn: { title: '回應模式', description: 'poke：只有戳一下馬上回應，其餘互動等下次回應時一併送達；all：所有互動都馬上回應；none：所有互動都等下次回應時一併送達；custom：依「習慣」頁勾選的互動馬上回應。一次互動得到回應之後、本輪結束之前的互動，都等下次回應時一併送達。' },

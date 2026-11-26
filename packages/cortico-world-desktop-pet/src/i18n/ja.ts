@@ -259,7 +259,7 @@ const ja: Translation<PetText> = {
     overTaskbar: { title: "タスクバーの上に表示", description: "オンのとき、ペットのウィンドウは画面下端のタスクバーの上まで広がり、フィギュアが地面より下に描く部分（座ったときに垂れる足）がタスクバーの上に表示されます。オフのとき、ウィンドウはタスクバーの上端までです。" },
     hideFromCapture: { title: "スクリーンショットと録画に映さない", description: "オンのあいだ、Coo はスクリーンショット、画面録画、配信、Coo が撮るスクリーンショットに映りません。オンのあいだ、NVIDIA インスタントリプレイのデスクトップキャプチャを有効にできないことがあります。" },
     exportOverlay: { title: 'OBS オーバーレイ', description: 'ペットのウィンドウの画面を透明な背景で /overlay に出し、OBS の「ブラウザ」ソースで使えるようにします。オフのときは出しません。' },
-    electronFile: { title: 'Electron 実行ファイル', description: '空欄なら CORTICO_DESKTOP_PET_HOST、次にパネルからインストールしたランタイムを使います。' },
+    electronFile: { title: 'Electron 実行ファイル', description: 'CORTICO_DESKTOP_PET_HOST が設定されていないときに使います。空欄ならパネルからインストールしたランタイムを使います。Coopanion はこれを設定してペットのウィンドウを自分で起動するため、Coopanion ではこの項目は効きません。' },
     port: { title: 'ページのポート', description: '使用中のときは次の空きポートに繰り上げます。' },
     touchEnabled: { title: 'ふれあいをイベントにする', description: 'つつく、なでる、持ち上げて投げる。' },
     touchWakeOn: { title: '反応モード', description: 'poke：つついたときだけすぐに反応し、ほかのふれあいは次の反応時にまとめて届きます。all：すべてのふれあいにすぐ反応します。none：すべてのふれあいは次の反応時にまとめて届きます。custom：「ふるまい」ページでチェックしたふれあいにすぐ反応します。一度反応したあと、そのターンが終わるまでのふれあいは次の反応時にまとめて届きます。' },

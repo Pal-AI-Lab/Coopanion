@@ -243,6 +243,7 @@ const { CoreHost } = require('./core-host.cjs');
 const { configuredLanguage, systemLanguage, textOf } = require('./i18n/index.cjs');
 const { RELEASES_URL, canUpdate, startUpdater } = require('./updater.cjs');
 const { takeInstallerFailure } = require('./installer-events.cjs');
+const { watchRenderer } = require(require.resolve('cortico-world-desktop-pet/host/renderer-gone.cjs'));
 /** Steam updates its build, and the portable one is updated by hand: only the others run the updater. */
 const SELF_UPDATE = !STEAM && !PORTABLE && canUpdate();
 
@@ -514,6 +515,7 @@ function openSettings(path = '') {
   settings.once('ready-to-show', () => bringForward(settings));
   settings.on('page-title-updated', (e) => e.preventDefault());
   keepOnConsole(settings.webContents);
+  watchRenderer(settings.webContents, { name: '设置窗口', log: (line) => core.warn(line) });
   const win = settings;
   let closing = false;
   win.on('close', () => {
