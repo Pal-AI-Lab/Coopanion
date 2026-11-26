@@ -88,7 +88,13 @@ function display(list: NativeDisplay[], n: number): NativeDisplay {
 /** Moves the pointer to a physical pixel of `d`. */
 function moveOn(d: NativeDisplay, x: number, y: number): void {
   const p = toNative(d, x, y);
-  os.moveTo(p.x, p.y);
+  try {
+    os.moveTo(p.x, p.y);
+  } catch (error) {
+    // Win32 has already moved the pointer when its follow-up input event fails.
+    if (error instanceof EngineFailure && error.code === 'winSendInput') markOwn();
+    throw error;
+  }
 }
 
 /** What the engine pressed and has not released: the keys of a hold, the buttons of clicks, drags and mouseDown. */
@@ -166,11 +172,17 @@ async function handle(req: EngineRequest, cancelled: Cancelled): Promise<unknown
       await sleep(40);
       press('left');
       const steps = 16;
-      for (let i = 1; i <= steps; i++) {
-        await sleep(16);
-        moveOn(d, req.x1 + (req.x2 - req.x1) * i / steps, req.y1 + (req.y2 - req.y1) * i / steps);
+      try {
+        for (let i = 1; i <= steps; i++) {
+          await sleep(16);
+          moveOn(d, req.x1 + (req.x2 - req.x1) * i / steps, req.y1 + (req.y2 - req.y1) * i / steps);
+        }
+        await sleep(40);
+      } catch (error) {
+        lift('left');
+        markOwn();
+        throw error;
       }
-      await sleep(40);
       lift('left');
     }); }
     case 'mouseDown': { const d = target(req.at); return withInput(req.yield, cancelled, async () => {
