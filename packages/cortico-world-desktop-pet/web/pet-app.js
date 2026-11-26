@@ -614,11 +614,39 @@ function fitLine(text) {
   bubble.style.maxWidth = balancedWidth(bubble) + 'px';
   p.replaceChildren();
 }
+/**
+ * A copy of the bubble shrinks toward its tail and fades where it stood (pet.css `.bubble.leaving`), so the bubble
+ * itself is free at once for the next one. None at low motion, or for a bubble still hidden.
+ */
+function leaveBubble() {
+  if (bubble.hidden || lowMotion()) return;
+  const ghost = bubble.cloneNode(true);
+  ghost.removeAttribute('id');
+  ghost.classList.remove('pop');
+  ghost.classList.add('leaving');
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.inert = true;
+  // a copy carries neither what was typed (the fields' values) nor the sizes still growing (growFrom's animations):
+  // both are copied as shown
+  const parts = [bubble, ...bubble.querySelectorAll('*')], copies = [ghost, ...ghost.querySelectorAll('*')];
+  for (const a of bubble.getAnimations?.({ subtree: true }) ?? []) {
+    const i = parts.indexOf(a.effect?.target);
+    if (i < 0 || a instanceof CSSAnimation || a instanceof CSSTransition) continue;
+    copies[i].style.width = `${parts[i].offsetWidth}px`;
+    copies[i].style.height = `${parts[i].offsetHeight}px`;
+  }
+  const fields = parts.filter((el) => el.matches('textarea, input'));
+  for (const el of fields) copies[parts.indexOf(el)].value = el.value;
+  bubble.after(ghost);
+  for (const el of fields) copies[parts.indexOf(el)].scrollTop = el.scrollTop;
+  setTimeout(() => ghost.remove(), POP_OUT_MS() + 60);
+}
 function closeBubble() {
   releaseKeys(item);
   barHeld = false;
   // a step taken off the bubble unanswered puts back the skin a card tried on
   if (item?.kind === 'dialog') { talk.motion = null; takeOff(false); }
+  leaveBubble();
   bubble.hidden = true; bubble.innerHTML = '';
   // the lines it answered fade a moment after (stepLines)
   if (item) item.endedAt = T;
@@ -867,7 +895,7 @@ function showOptions(it) {
   if (it.own) {
     const form = document.createElement('form');
     form.className = 'b-own';
-    form.innerHTML = `<input type="text" autocomplete="off" placeholder="${esc(t('bubble.ownPlaceholder'))}" aria-label="${esc(t('bubble.ownLabel'))}"><span class="b-count" hidden></span><button type="submit">${esc(t('bubble.send'))}</button>`;
+    form.innerHTML = `<input type="text" autocomplete="off" placeholder="${esc(t('bubble.ownPlaceholder'))}" aria-label="${esc(t('bubble.ownLabel'))}"><span class="b-count" hidden></span><button type="submit" aria-label="${esc(t('bubble.send'))}" title="${esc(t('bubble.send'))}">${ICONS.send}</button>`;
     form.style.animationDelay = (it.options.length * .07) + 's';
     const capped = capField(form, form.querySelector('input'), form.querySelector('.b-count'), OWN_MAX);
     form.addEventListener('submit', (e) => {
@@ -1229,7 +1257,7 @@ function openInput() {
   const expand = prefs.bot?.buttons?.chat
     ? `<button class="b-expand" type="button" aria-label="${esc(t('bubble.expand'))}" title="${esc(t('bubble.expand'))}">${ICONS.expand}</button>`
     : '';
-  openBubble('ask', `${sideColumn(t('bubble.close'), false, true)}<div class="b-imgs" hidden></div><form class="b-own"><textarea rows="1" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea><span class="b-count" hidden></span>${expand}<button type="submit">${esc(t('bubble.send'))}</button></form><span class="b-hint b-limit" role="status" hidden></span><span class="b-hint b-note" hidden></span>`);
+  openBubble('ask', `${sideColumn(t('bubble.close'), false, true)}<div class="b-imgs" hidden></div><form class="b-own b-type"><textarea rows="1" autocomplete="off" placeholder="${esc(t('bubble.typePlaceholder'))}" aria-label="${esc(t('bubble.typeLabel'))}"></textarea><span class="b-acts"><span class="b-count" hidden></span>${expand}<button type="submit" aria-label="${esc(t('bubble.send'))}" title="${esc(t('bubble.send'))}">${ICONS.send}</button></span></form><span class="b-hint b-limit" role="status" hidden></span><span class="b-hint b-note" hidden></span>`);
   const form = bubble.querySelector('form'), input = form.querySelector('textarea');
   const tray = bubble.querySelector('.b-imgs'), note = bubble.querySelector('.b-note');
   // the scrollbar outside the box (pet.css .b-track): its track runs from under the close button to the text's bottom
@@ -1289,7 +1317,9 @@ function openInput() {
     probe.style.cssText = `position:absolute; visibility:hidden; white-space:pre; font:${getComputedStyle(input).font}`;
     probe.textContent = input.placeholder;
     document.body.append(probe);
-    input.style.minWidth = `${Math.ceil(probe.getBoundingClientRect().width) + 1}px`;
+    // the row keeps clear of the buttons beside it by its right padding (pet.css .b-type)
+    form.style.setProperty('--acts-w', `${form.querySelector('.b-acts').offsetWidth}px`);
+    input.style.minWidth = `${Math.ceil(probe.getBoundingClientRect().width + parseFloat(getComputedStyle(input).paddingRight)) + 1}px`;
     probe.remove();
     bubble.style.removeProperty('max-width');
     // the row's own overflow: what sticks out of it into the bubble's padding does not widen the bubble's scroll width
@@ -1321,13 +1351,43 @@ function openInput() {
     }));
     drawBar();
   };
-  // text past one row takes the field's whole width (pet.css `.b-own.tall`), until it is cleared: going back to one row
+  // An edit that changes the rows grows or shrinks the field to its new height, and one that starts or leaves a
+  // second row (`tall`) the bubble to its new width as well (pet.css .b-type), over --motion-slow without overshoot;
+  // at low motion it is there at once. The text keeps its final width and is cut at the moving edge, and the frame
+  // loop runs at full rate meanwhile so the bubble's placement keeps up with its size. The sizes it starts from are
+  // taken on `beforeinput`, while the screen still shows them.
+  let shown = null, moving = [];
+  input.addEventListener('beforeinput', () => { shown = { h: form.offsetHeight, w: bubble.offsetWidth, tall: form.classList.contains('tall') }; });
+  const settle = () => { form.style.removeProperty('overflow'); input.style.removeProperty('width'); input.style.removeProperty('flex'); };
+  const reflow = () => {
+    const was = shown;
+    shown = null;
+    for (const a of moving) a.cancel();
+    moving = [];
+    settle();
+    if (!was) return;
+    const root = document.documentElement, duration = cssMs(root, '--motion-slow', 280);
+    const timing = { duration, easing: getComputedStyle(root).getPropertyValue('--motion-return').trim() || 'ease-out' };
+    const textWidth = input.offsetWidth;
+    const wide = was.tall !== form.classList.contains('tall') ? growFrom(bubble, { w: was.w }, timing) : undefined;
+    if (wide) { input.style.width = `${textWidth}px`; input.style.flex = 'none'; }
+    moving = [wide, growFrom(form, { h: was.h }, timing)].filter(Boolean);
+    if (!moving.length) return;
+    // clipped and not scrollable: a scrollable field would scroll the caret into view, the buttons in its corner with it
+    form.style.overflow = 'clip';
+    smoothFor(duration + 50);
+    Promise.all(moving.map((a) => a.finished)).then(settle, () => {});
+  };
+  // text past one row takes the field's whole width (pet.css `.b-type.tall`), until it is cleared: going back to one row
   // as soon as it fits beside the buttons would swing the layout to and fro at the edge
   input.addEventListener('input', () => {
     if (!input.value) form.classList.remove('tall');
     // more than a row and a half, with the textarea's 4px padding above and below: a second row has begun
     else if (input.scrollHeight > parseFloat(getComputedStyle(input).lineHeight) * 1.5 + 8) form.classList.add('tall');
+    reflow();
     drawBar();
+    // the bubble's width followed the text: placed again now, it widens on both sides on this frame, not first to the right
+    layout();
   });
   // Enter sends, Shift+Enter starts a new line; Enter that confirms an input method's text does neither
   input.addEventListener('keydown', (e) => {
@@ -2716,14 +2776,24 @@ document.addEventListener('keydown', (e) => {
 });
 
 /* ---------- layout ---------- */
+/**
+ * Puts `el`'s bottom edge at `bottom` px from the page's top, or its top 8px from the page's top when it is taller than
+ * the room above; returns its top. Held by the bottom, a bubble whose height changes between two layouts (an animated
+ * height, a typed row) grows and shrinks upward on that frame: placed by its top, it would hang a frame downward first.
+ */
+function setBottom(el, bottom, bh) {
+  if (bottom - bh < 8) { el.style.top = '8px'; el.style.bottom = 'auto'; return 8; }
+  el.style.top = 'auto';
+  el.style.bottom = f(innerHeight - bottom) + 'px';
+  return bottom - bh;
+}
 /** Coo's bubble above its head, moved over to the side it faces. */
 function place(el, a, extraUp) {
   const bw = el.offsetWidth, bh = el.offsetHeight;
   // a close button hangs off the bubble's right side (sideColumn): it stays on the screen too
   const left = clamp(a.x - bw / 2 + (at()?.facing ?? 1) * 26, 10, Math.max(10, innerWidth - bw - 10 - sideRoom(el)));
-  const top = Math.max(8, a.y - bh - extraUp);
+  const top = setBottom(el, a.y - extraUp, bh);
   el.style.left = f(left) + 'px';
-  el.style.top = f(top) + 'px';
   el.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }
@@ -2735,9 +2805,8 @@ function placeTalk(it, a) {
   if (mode === 'drag' || (FLYING.has(mode) && !talk.motion)) it.carried = true;
   if (it.carried) { it.pinX = a.x; it.pinY = a.y; if (!FLYING.has(mode)) it.carried = false; }
   const left = clamp(it.pinX - bw / 2, 10, Math.max(10, innerWidth - bw - 10 - sideRoom(bubble)));
-  const top = Math.max(8, it.pinY - bh - 18 * prefs.bubbleSize);
+  const top = setBottom(bubble, it.pinY - 18 * prefs.bubbleSize, bh);
   bubble.style.left = f(left) + 'px';
-  bubble.style.top = f(top) + 'px';
   bubble.style.setProperty('--tail', f(tailAt(bw, a.x - left, prefs.bubbleSize)) + 'px');
   return { left, top, bw, bh };
 }

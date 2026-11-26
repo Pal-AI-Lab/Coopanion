@@ -206,6 +206,11 @@ body.desk .floor{display:none}
 .bubble.ask{min-width:min(calc(236px * var(--bubble-size, 1)), calc(100vw - 20px))}
 .bubble.pop{animation:bubble-in var(--motion-slow) var(--motion-pop)}
 @keyframes bubble-in{from{transform:scale(.5); opacity:0}}
+/* closed: a copy of the bubble (pet-app.js leaveBubble) shrinks toward its tail and fades, over --pop-out, moving from
+   its first frame on. What it holds stays as it was shown: a copy would play its parts' entrances again. */
+.bubble.leaving{animation:bubble-out var(--pop-out) var(--motion-return) forwards; pointer-events:none}
+.bubble.leaving *, .bubble.leaving *::before, .bubble.leaving *::after{animation:none !important; transition:none !important}
+@keyframes bubble-out{to{transform:scale(.7); opacity:0}}
 .b-text{margin:0; min-height:1.55em; white-space:pre-wrap; text-wrap:pretty; overflow-wrap:break-word}
 .b-text .interim{color:var(--muted)}
 .b-text a{color:var(--skin-eye); text-decoration:underline; text-underline-offset:2px; overflow-wrap:anywhere}
@@ -237,10 +242,20 @@ body.desk .floor{display:none}
 .b-own input, .b-own textarea{flex:1; min-width:0; border:0; background:transparent; font:inherit; font-size:calc(14px * var(--bubble-font, 1)); color:var(--text); outline:none; padding:4px 0}
 /* the typed line grows with its text up to six rows, then scrolls */
 .b-own textarea{resize:none; field-sizing:content; line-height:1.4; max-height:calc(6 * 1.4em + 8px); overflow-y:auto; overflow-wrap:anywhere}
-/* once the text takes a second row (pet-app.js `tall`) it gets the field's whole width and the buttons go under it */
-.b-own.tall{flex-wrap:wrap; justify-content:flex-end; row-gap:2px}
+/* The typing box's buttons and count (.b-acts) sit in the field's bottom right corner, so they move with its edges on
+   the frame it widens, grows or shrinks. One row of text keeps clear of them on the right (--acts-w, their width, set
+   by pet-app.js fitHint); from a second row on (pet-app.js `tall`) the bubble is as wide as it gets, the text takes
+   the field's whole width and a row of 26px buttons and a 2px gap stays free under it. The min-height holds the
+   buttons when the text is set small; while the field is shorter than its text (its height animating) the text keeps
+   to the top. */
+.b-type{position:relative; align-items:flex-start; min-height:35px}
+.b-type textarea{padding-right:calc(var(--acts-w) + 6px)}
+.b-acts{position:absolute; right:3px; bottom:3px; display:flex; align-items:center; gap:6px}
+.b-type.tall{padding-bottom:31px}
+.bubble:has(> .b-type.tall){width:100vw}
+.b-type.tall .b-acts{left:10px; justify-content:flex-end}
 /* its right edge as far from the field's border as its left (the field's padding is 3px on the right, 10px on the left) */
-.b-own.tall textarea{flex:0 0 100%; padding-right:7px}
+.b-type.tall textarea{padding-right:7px}
 /* a bubble with a close button keeps it outside, on its right (pet-app.js sideColumn): a small round button as the
    hover buttons are drawn, and for the typing box, under it, centred, a thumb on a faint track while the text
    scrolls; the textarea's own scrollbar is not shown */
@@ -263,7 +278,9 @@ body.desk .floor{display:none}
 .b-track{position:relative; width:6px; border-radius:3px; background:color-mix(in srgb, var(--line) 60%, transparent); cursor:pointer; touch-action:none}
 .b-thumb{position:absolute; left:0; width:6px; min-height:16px; border-radius:3px; background:var(--muted); opacity:.75; transition:opacity var(--motion-fast)}
 .b-track:hover .b-thumb, .b-track.held .b-thumb{opacity:1}
-.b-own button[type="submit"]{flex:none; font:inherit; font-size:calc(12.5px * var(--bubble-font, 1)); padding:4px 10px; border-radius:8px; border:0; background:var(--text); color:var(--surface); cursor:pointer}
+.b-own button[type="submit"]{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border-radius:50%; border:0; background:var(--text); color:var(--surface); cursor:pointer; transition:background var(--motion-fast), opacity var(--motion-fast)}
+.b-own:not(.over) button[type="submit"]:hover{background:var(--skin-eye)}
+.b-own button[type="submit"] svg{width:15px; height:15px}
 .b-expand{flex:none; display:grid; place-items:center; width:26px; height:26px; padding:0; border:0; border-radius:50%; background:none; color:var(--muted); cursor:pointer}
 .b-expand:hover{color:var(--text)}
 .b-expand svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.6px; stroke-linecap:round; stroke-linejoin:round}
@@ -393,7 +410,7 @@ body.desk .floor{display:none}
 .b-count{flex:none; align-self:center; font-size:calc(11.5px * var(--bubble-font, 1)); font-variant-numeric:tabular-nums; padding:0 2px; color:var(--anger)}
 .b-own.over, .b-own.over:focus-within, .d-field.over, .d-field.over:focus-within{border-style:solid; border-color:var(--anger)}
 /* in the typing box the count goes to the left of the row of buttons under the text */
-.b-own.tall .b-count{margin-right:auto; padding-left:0}
+.b-type.tall .b-count{margin-right:auto; padding-left:0}
 .b-limit{margin-top:6px; color:var(--anger)}
 .b-expand.nudge{color:var(--skin-eye)}
 .b-own.over button[type="submit"], .d-field.over .d-send{opacity:.4; cursor:default}
