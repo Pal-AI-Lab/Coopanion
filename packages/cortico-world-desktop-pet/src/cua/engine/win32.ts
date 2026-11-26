@@ -89,7 +89,7 @@ const INPUT_MOUSE = 0, INPUT_KEYBOARD = 1;
 const MOUSEEVENTF = { LEFTDOWN: 0x2, LEFTUP: 0x4, RIGHTDOWN: 0x8, RIGHTUP: 0x10, MIDDLEDOWN: 0x20, MIDDLEUP: 0x40, WHEEL: 0x800, HWHEEL: 0x1000 };
 const MONITORINFOF_PRIMARY = 1;
 const KEYEVENTF = { EXTENDEDKEY: 0x1, KEYUP: 0x2, UNICODE: 0x4 };
-const WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_CHAR = 0x0102;
+const WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_CHAR = 0x0102, WM_IME_CHAR = 0x0286;
 const SMTO_ABORTIFHUNG = 2, SMTO_ERRORONEXIT = 0x20;
 const GWL_EXSTYLE = -20, WS_EX_TOOLWINDOW = 0x80;
 const DWMWA_EXTENDED_FRAME_BOUNDS = 9, DWMWA_CLOAKED = 14;
@@ -270,6 +270,9 @@ export async function imeTextWriter(text: string, cancelled: () => boolean) {
       return;
     }
   }
+  // 仅向拥有焦点 HWND 的编辑器发送已确认的 IME 字符。虚拟子控件由宿主分派 WM_CHAR。
+  const charMessage = selection?.nativeWindow && koffi.address(selection.nativeWindow) === koffi.address(window)
+    ? WM_IME_CHAR : WM_CHAR;
   const write = (msg: number, value: number, flags: number) => {
     if (!sameControl()) return false;
     if (!SendMessageTimeoutW(window, msg, value, flags, SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 250, null)) throw new EngineFailure('winTextDelivery');
@@ -281,9 +284,9 @@ export async function imeTextWriter(text: string, cancelled: () => boolean) {
     for (const char of chunk) {
       if (char === '\n') {
         // Enter carries scan code 0x1c. Chromium needs the key and character messages together.
-        if (!write(WM_KEYDOWN, 13, 0x001c0001) || !write(WM_CHAR, 13, 0x001c0001) || !write(WM_KEYUP, 13, 0xc01c0001)) break;
+        if (!write(WM_KEYDOWN, 13, 0x001c0001) || !write(charMessage, 13, 0x001c0001) || !write(WM_KEYUP, 13, 0xc01c0001)) break;
       } else if (char !== '\r') {
-        for (let i = 0; i < char.length; i++) if (!write(WM_CHAR, char.charCodeAt(i), 1)) return typed;
+        for (let i = 0; i < char.length; i++) if (!write(charMessage, char.charCodeAt(i), 1)) return typed;
       }
       typed++;
     }

@@ -22,6 +22,9 @@ app.whenReady().then(async () => {
   win.show();
   win.focus();
   await win.webContents.executeJavaScript('document.querySelector("textarea,input").focus()');
+  if (scenario === 'selection') {
+    await win.webContents.executeJavaScript('const box = document.querySelector("textarea"); box.value = "前选中后"; box.setSelectionRange(1, 3)');
+  }
   if (second) {
     win.webContents.on('page-title-updated', (_event, title) => {
       if (title === 'first input') { second.show(); second.focus(); }

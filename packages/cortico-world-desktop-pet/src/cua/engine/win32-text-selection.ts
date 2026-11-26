@@ -1,5 +1,4 @@
-/** UI Automation reports whether the focused selection accepts text, including for controls
- * without a child HWND. Only the selection's read-only attribute and focus are queried. */
+/** 通过 UI Automation 查询焦点选区是否可写，以及编辑器自身是否拥有原生窗口。 */
 import koffi from 'koffi';
 
 const ptrSize = koffi.sizeof('void *');
@@ -20,6 +19,7 @@ const patternAs = method(14, 'long __stdcall GetCurrentPatternAs(void *, int, vo
 const processId = method(20, 'long __stdcall CurrentProcessId(void *, _Out_ int *)');
 const hasFocus = method(26, 'long __stdcall CurrentHasKeyboardFocus(void *, _Out_ int *)');
 const isPassword = method(35, 'long __stdcall CurrentIsPassword(void *, _Out_ int *)');
+const nativeWindowHandle = method(36, 'long __stdcall CurrentNativeWindowHandle(void *, _Out_ void **)');
 const selection = method(5, 'long __stdcall GetSelection(void *, _Out_ void **)');
 const length = method(3, 'long __stdcall RangeCount(void *, _Out_ int *)');
 const rangeAt = method(4, 'long __stdcall RangeAt(void *, int, _Out_ void **)');
@@ -53,7 +53,7 @@ function automation() {
   return client;
 }
 
-export interface FocusedSelection { focused(): boolean; close(): void }
+export interface FocusedSelection { nativeWindow: unknown; focused(): boolean; close(): void }
 
 export function writableSelection(pid: number): FocusedSelection | undefined {
   const uia = automation();
@@ -76,8 +76,10 @@ export function writableSelection(pid: number): FocusedSelection | undefined {
       // UIA_IsReadOnlyAttributeId must be explicitly VARIANT_FALSE (VT_BOOL).
       if (attribute(range[0], 40015, value) !== 0 || value.readUInt16LE(0) !== 11 || value.readInt16LE(8) !== 0) return;
     } finally { clearVariant(value); }
+    const hwnd = [null];
+    const nativeWindow = nativeWindowHandle(target, hwnd) === 0 ? hwnd[0] : null;
     retained = true;
-    return { focused, close: () => release(target) };
+    return { nativeWindow, focused, close: () => release(target) };
   } finally {
     for (const ptr of [range[0], ranges[0], pattern[0]]) if (ptr) release(ptr);
     if (!retained) release(target);

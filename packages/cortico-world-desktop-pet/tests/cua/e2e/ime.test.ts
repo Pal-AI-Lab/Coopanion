@@ -10,7 +10,7 @@ import { CUA_DEFAULTS } from '../../../src/cua/config.ts';
 import { Cua } from '../../../src/cua/cua.ts';
 import { FakeHost } from '../../helpers/fake-host.ts';
 
-it.runIf(process.platform === 'win32').for(['multiline', 'form', 'switch'])('types with a Taiwanese IME: %s', async (scenario, { skip }) => {
+it.runIf(process.platform === 'win32').for(['multiline', 'selection', 'form', 'switch'])('types with a Taiwanese IME: %s', async (scenario, { skip }) => {
   const host = new FakeHost();
   const world = new Cua({ cfg: () => ({ ...CUA_DEFAULTS, enabled: true, permission: 'never-ask', userIdleMs: 300 }) });
   const profile = await mkdtemp(join(tmpdir(), 'cua-ime-'));
@@ -51,6 +51,8 @@ it.runIf(process.platform === 'win32').for(['multiline', 'form', 'switch'])('typ
     } else if (scenario === 'form') {
       expect(actual.text).toBe(text.trimEnd());
       expect(actual.submits).toBe(1);
+    } else if (scenario === 'selection') {
+      expect(actual.text).toBe(`前${text}后`);
     } else expect(actual.text).toBe(text);
   } finally {
     if (editor.connected) editor.disconnect();
