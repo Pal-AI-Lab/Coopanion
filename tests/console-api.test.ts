@@ -151,7 +151,7 @@ describe('routes the advanced mode uses beyond the public table', () => {
 
   it('Worlds: the list, visibility, restart, activation', async () => {
     const { body } = await json(await get('/api/worlds'));
-    expect(body.worlds).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'probe' })]));
+    expect(body.worlds).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'probe', label: expect.any(String) })]));
     expect((await json(await post('/api/worlds/visibility', { id: CONSOLE.id, visible: true }))).body).toMatchObject({ result: expect.any(String), visibility: expect.any(Object) });
     expect((await json(await post('/api/worlds/restart', { id: CONSOLE.id }))).body).toMatchObject({ result: expect.any(String) });
     expect((await json(await post('/api/worlds/activation', { id: CONSOLE.id, enabled: true }))).body).toMatchObject({ result: expect.any(String) });
@@ -287,7 +287,7 @@ describe('the WebUI API the settings window reads', () => {
 
   it('usage: totals, a series and the breakdowns, empty before any model call', async () => {
     const { body } = await json(await get('/api/usage?bucket=day&days=7'));
-    expect(body).toMatchObject({ currency: expect.any(String), bucket: expect.any(String), series: expect.any(Array), byRole: expect.any(Array), byModel: expect.any(Array) });
+    expect(body).toMatchObject({ currency: expect.any(String), bucket: expect.any(String), series: expect.any(Array), byRole: expect.any(Array), byModel: expect.any(Array), byWorld: expect.any(Array), unattributed: expect.objectContaining({ calls: 0 }) });
     expect('totals' in body).toBe(true);
   });
 

@@ -255,6 +255,7 @@ export function mountUsage(ctx: PageContext): void {
     role: ui.table({ head: [S.dimRole, ...GROUP_HEAD] }),
     model: ui.table({ head: [S.dimModel, ...GROUP_HEAD] }),
     instance: ui.table({ head: [S.dimInstance, ...GROUP_HEAD] }),
+    world: ui.table({ head: [S.dimWorld, ...GROUP_HEAD] }),
   };
   type GroupKey = keyof typeof groupTables;
   const tableBox = ui.h('div');
@@ -279,6 +280,7 @@ export function mountUsage(ctx: PageContext): void {
     { value: 'role', label: S.byRole },
     { value: 'model', label: S.byModel },
     { value: 'instance', label: S.byInstance },
+    { value: 'world', label: S.byWorld },
   ], { size: 'sm', value: 'role', onSelect: (v) => showGroup(v as GroupKey) });
   groupSeg.el.classList.add('uswitch');
   headActions(ui, breakdown, groupSeg.el);
@@ -492,7 +494,17 @@ export function mountUsage(ctx: PageContext): void {
     renderGroup(groupTables.role, d.byRole || [], cur);
     renderGroup(groupTables.model, d.byModel || [], cur);
     renderGroup(groupTables.instance, d.byInstance || [], cur);
+    renderWorlds(d);
     renderMain();
+  }
+
+  /** World id 到 /api/worlds 给的显示名;不在清单里的(已删除的 World)首列只印 id。 */
+  let worldLabels = new Map<string, string>();
+  /** 按 World 一表，末行是未归属。 */
+  function renderWorlds(d: UsageAggregate): void {
+    const worlds = (d.byWorld || []).map((g) => ({ ...g, label: worldLabels.get(g.key) }));
+    const unattributed = d.unattributed?.calls ? [{ ...d.unattributed, key: S.unattributed }] : [];
+    renderGroup(groupTables.world, [...worlds, ...unattributed], d.currency || 'USD');
   }
 
   // ---- 取数 -----------------------------------------------------------------
@@ -574,6 +586,11 @@ export function mountUsage(ctx: PageContext): void {
   compBox.hidden = true;
   cards.appendChild(ui.placeholder(S.loading));
   void load();
+  // 读不到清单时 World 一表照样按 id 列出。
+  void get<{ worlds?: Array<{ id: string; label?: string }> }>('/api/worlds', { signal: ctx.signal }).then((data) => {
+    worldLabels = new Map((data.worlds ?? []).flatMap((world) => (world.label ? [[world.id, world.label] as const] : [])));
+    if (state.data) renderWorlds(state.data);
+  }, () => {});
 }
 
 export const usagePage: Page = {

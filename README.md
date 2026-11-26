@@ -196,7 +196,7 @@ Open the settings window from the tray icon or from Coo's right-click menu.
 | Dress up | Figure, colors and accessories; import or uninstall figure packs |
 | Voice input | Recognition engine or transcription service, model download, talk key, microphone, listening mode, speech threshold |
 | System prompt | Persona and prompt templates; Ctrl+S saves, and **Apply now** puts the new prompt into the current conversation |
-| Usage & cost | Token usage and spending by day and model |
+| Usage & cost | Token usage and spending by day, model and World; a request several Worlds caused is split among them by what each brought into the context |
 | Chat | Conversation history, typing, images |
 | World extensions | Installed Worlds, groups and order, the extension market |
 
