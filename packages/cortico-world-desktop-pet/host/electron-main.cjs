@@ -30,6 +30,7 @@ const { createMouseLease, FORWARD_MOVES } = require('./mouse-lease.cjs');
 const { createOverlaySource } = require('./overlay.cjs');
 const { capturePortrait } = require('./portrait.cjs');
 const { createWindowSource, ledgesFrom, windowsFrom } = require('./windows.cjs');
+const { createIconSource, iconsFrom } = require('./icons.cjs');
 const { createAppStoreRule } = require('./app-store.cjs');
 
 /** The pages' text table of `code`, falling back as web/i18n.js does. */
@@ -49,6 +50,11 @@ async function pageText(code) {
 const CURSOR_EVERY_MS = process.platform === 'win32' ? 15 : 100;
 /** Milliseconds between the reads of the other windows, while the page asks for them. */
 const WINDOWS_EVERY_MS = 700;
+/**
+ * Milliseconds between the reads of the desktop's icons, while the page asks for them: the windows in front of
+ * them are read each time, the icons themselves at most every ICONS_CACHE_MS (host/icons.cjs).
+ */
+const ICONS_EVERY_MS = 1000;
 /**
  * Milliseconds between the reads of the foreground window on Windows, for the topmost assertion and the
  * check for a fullscreen window covering the pet's display.
@@ -372,6 +378,28 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     sentWindows = '';
     if (on && windows.available) { windowTimer = setInterval(readWindows, WINDOWS_EVERY_MS); readWindows(); }
   };
+  // the desktop's icons, read only while the page asks (its body's pack needs them) and sent when they change:
+  // the icons not wholly behind other windows, and the visible parts of their tops
+  const icons = createIconSource({ screen });
+  let iconTimer = null, sentIcons = '';
+  const readIcons = () => {
+    if (!win || !win.isVisible()) return;
+    const found = icons.list();
+    const b = win.getBounds();
+    const origin = { x: b.x, y: b.y }, view = { width: b.width, floor: b.height - 2 - coverArea(display(), overTaskbar).below };
+    // the desktop lies below every window: those in front hide icons (none read counts as none in front)
+    const desk = found && iconsFrom(found, windows.list(hwndOf(win)) ?? [], origin, view);
+    const json = JSON.stringify(desk);
+    if (json === sentIcons) return;
+    sentIcons = json;
+    win.webContents.send('pet:icons', desk);
+  };
+  const watchIcons = (on) => {
+    clearInterval(iconTimer);
+    iconTimer = null;
+    sentIcons = '';
+    if (on && icons.available) { iconTimer = setInterval(readIcons, ICONS_EVERY_MS); readIcons(); }
+  };
 
   /** The display the window belongs on: the one it was moved to, or the primary display once that one is gone. */
   const display = () => screen.getAllDisplays().find((d) => d.id === displayId) ?? screen.getPrimaryDisplay();
@@ -442,7 +470,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
     });
     // a page loaded afresh asks for the windows again once its body is on
     win.webContents.on('did-finish-load', () => {
-      win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); win.webContents.send('pet:floor', coverArea(display(), overTaskbar).below);
+      win.webContents.setZoomLevel(0); overlay.pageLoaded(); watchWindows(false); watchIcons(false); win.webContents.send('pet:floor', coverArea(display(), overTaskbar).below);
       win.webContents.send('pet:fullscreenThrough', fullscreenThrough);
       if (shape) win.webContents.send('pet:inputShape', true);
     });
@@ -481,7 +509,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
       lastForeground = cur;
       if (cur !== own) win.setAlwaysOnTop(true, level);
     }, FOREGROUND_EVERY_MS);
-    win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(foregroundTimer); watchWindows(false); win = null; });
+    win.on('closed', () => { appStore?.stop(); clearInterval(cursorTimer); clearInterval(foregroundTimer); watchWindows(false); watchIcons(false); win = null; });
     // page console lines reach the World's log through stdout
     win.webContents.on('console-message', (e) => { if (e.level !== 'debug') console.log(`[page:${e.level}] ${e.message}`); });
     win.webContents.on('did-fail-load', (_e, code, desc, failedUrl) => console.log(`[page:error] 加载失败 ${code} ${desc} ${failedUrl}`));
@@ -531,6 +559,7 @@ function runPetHost({ url, parentPid = 0, tray: withTray = true }) {
   onPet('pet:hideFromCapture', (_e, on) => win.setContentProtection(!!on));
   onPet('pet:clickThrough', (_e, on) => { trayThrough = !!on; lockMouse(); });
   onPet('pet:watchWindows', (_e, on) => watchWindows(!!on));
+  onPet('pet:watchIcons', (_e, on) => watchIcons(!!on));
   onPet('pet:openDress', () => openDress());
   let language = 'zh';
   onPet('pet:language', (_e, code) => {

@@ -22,6 +22,14 @@
  *   off the stage or behind other windows included): every window that reaches onto the stage above the floor, at
  *   most 64. `id` is an opaque string that stays the window's while it is open and may go to another window after
  *   it closes; `active` is true for the foreground window and false for the others, and absent on macOS.
+ *   For a pack whose manifest `needs` `icons`, `bounds()` also has `icons` and `iconLedges` while the window can read
+ *   them (Windows only for now), in stage pixels, read every second (the icons themselves at most every 2 s) and
+ *   replaced only when something changed; absent elsewhere. `icons`: the desktop's icons (the image, not the label)
+ *   `[{ id, x0, y0, x1, y1, occluded? }]`, every icon that reaches onto the stage above the floor and is not wholly
+ *   behind a window, at most 128; `occluded` is true on one a window covers in part; none while the desktop's icons
+ *   are hidden. `id` is the icon's place in the desktop's list, kept while the desktop is not re-sorted. No labels.
+ *   `iconLedges`: the visible parts of those icons' top edges, `[{ id, x0, x1, y }]` (`ledges`' shape, apart from
+ *   them so a pack reading `ledges` as window tops keeps working), highest first.
  * - `kit`: web/kit/body.js (createBody builds a whole body around a figure that only draws; createRig).
  * - the body: `step(dt, draw)` advances one frame and draws it, unless `draw` is false (the pet window is hidden;
  *   a body that draws anyway only spends the time); `layout()` says where it is ({ x, y, facing, mode,
@@ -39,7 +47,7 @@
  *
  * Messages in: `init { entry, export, base, model, scheme, start, theme, bounds, language }` (the app language,
  * for the frame's own error messages), then `tick { dt, draw }`
- * once a frame, `windows { ledges, windows }` (null when there are none to read) and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
+ * once a frame, `windows { ledges, windows }` and `icons { icons, ledges }` (null when there are none to read) and the calls above by name. Out: `loaded`, `ready { z, words }`, `frame { layout, events: [{ kind,
  * detail }], sounds: [{ name, kind, args }], z }` after each tick, `scheme { seq, z }`, and `error { message }`
  * once, after which it stops.
  */
@@ -47,9 +55,9 @@ import * as kit from './kit/body.js';
 import { t, useLanguage } from './i18n.js';
 
 const root = document.getElementById('root');
-let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 }, desk = null;
-/** The stage's size from the page, with the windows when there are any. */
-const setBounds = (b) => { bounds = desk ? { ...b, ...desk } : { ...b }; };
+let body = null, dead = false, bounds = { W: 0, H: 0, floorY: 0, S: .42 }, desk = null, icons = null;
+/** The stage's size from the page, with the windows and the icons when there are any. */
+const setBounds = (b) => { bounds = { ...b, ...(desk ?? {}), ...(icons ?? {}) }; };
 let events = [], sounds = [];
 const post = (m) => parent.postMessage(m, '*');
 function fail(err) {
@@ -84,6 +92,10 @@ addEventListener('message', async (e) => {
     if (m.t === 'windows') {
       desk = Array.isArray(m.ledges) && Array.isArray(m.windows) ? { ledges: m.ledges, windows: m.windows } : null;
       const { ledges: _l, windows: _w, ...b } = bounds;
+      setBounds(b);
+    } else if (m.t === 'icons') {
+      icons = Array.isArray(m.icons) && Array.isArray(m.ledges) ? { icons: m.icons, iconLedges: m.ledges } : null;
+      const { icons: _i, iconLedges: _l, ...b } = bounds;
       setBounds(b);
     } else if (m.t === 'init') {
       setBounds(m.bounds);

@@ -113,6 +113,9 @@ describe('figure packs', () => {
     expect(m.needs).toEqual(['windows']);
     expect(m.moves).toEqual([shelf]);
     expect(skipped).toHaveLength(1);
+    const both = readManifest(pack({ ...base, needs: ['icons', 'windows', 'icons'] }));
+    if (typeof both === 'string') throw new Error(both);
+    expect(both.needs).toEqual(['icons', 'windows']);
     // a default target's name or a number would never reach the pack; a number without bounds is not a parameter
     for (const id of ['left', 'cursor', '0.5']) expect(readManifest(pack({ ...base, moves: [{ ...shelf, id }] }))).toMatch(/moves/);
     expect(readManifest(pack({ ...base, moves: [{ ...shelf, params: [{ id: 'height', about: { zh: '跳多高' }, min: 1, max: 1 }] }] }))).toMatch(/params/);

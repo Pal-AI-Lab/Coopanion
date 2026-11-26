@@ -46,8 +46,11 @@ export const COO = 'coo';
 export const PACK_SOUND_KINDS = ['move', 'touch', 'face', 'snore', 'talk'] as const;
 /** How a sound asked for while its last play has not ended plays (`repeat`, web/sound.js): over it, after fading it out, or not at all. */
 export const SOUND_REPEATS = ['overlap', 'restart', 'finish'] as const;
-/** Data about the desktop a pack may ask for: `windows`, the windows on the pet's display and their visible top edges. */
-export const PACK_NEEDS = ['windows'] as const;
+/**
+ * Data about the desktop a pack may ask for: `windows`, the windows on the pet's display and their visible top edges;
+ * `icons`, the desktop's icons and the visible parts of their tops (Windows only for now; host/icons.cjs).
+ */
+export const PACK_NEEDS = ['windows', 'icons'] as const;
 /** The range of `voice.pitch`, and of `effects.reach` in 256-unit squares. */
 export const VOICE_PITCH = { min: .5, max: 2 } as const;
 export const EFFECTS_REACH_MAX = 2;
