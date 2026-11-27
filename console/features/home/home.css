@@ -57,6 +57,12 @@
 /* 说话声的音高、语速:档位下面是自定义的数值,只在选中「自定义」时出现 */
 .companion-steps > .companion-rangebox[hidden] { display: none; }
 .companion-steps > .companion-rangebox > input[type=number] { flex: none; width: 96px; }
+/* 台词和输入气泡的停留时间：秒数跟在「固定」右边的同一行，和下拉框中线对齐；下拉框没有可对的文字基线，
+   左栏名称顶端对齐后下移 9px((40px 的框 - 22px 的一行)/2),对着框的中线 */
+.companion-steps.companion-inline { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.companion-steps.companion-inline > .companion-rangebox { margin-top: 0; padding-top: 0; }
+.companion-row:has(.companion-inline) { align-items: start; }
+.companion-row:has(.companion-inline) > .companion-label { padding-top: 9px; }
 /* 打字键读不了时，说明换成原因 */
 .home-note.bad { color: var(--danger); }
 /* 大小、外发光的滑杆没有文字基线:顶端对齐,左栏名称下移 4px(滑杆框上方的内边距),两者中线对齐;下面的说明不影响它 */

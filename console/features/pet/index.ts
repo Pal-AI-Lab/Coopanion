@@ -257,7 +257,7 @@ async function mount(ctx: PageContext): Promise<void> {
       if (num.value !== num.dataset.saved) { num.dataset.saved = num.value; void save(key, n, GROUP, num); }
     }, { signal });
     num.addEventListener('keydown', (e) => { if (e.key === 'Enter') num.blur(); }, { signal });
-    const box = ui.h('div', 'companion-switchbox companion-steps');
+    const box = ui.h('div', 'companion-switchbox companion-steps companion-inline');
     box.append(mode, numBox);
     const sync = (v: unknown) => {
       if (typeof v !== 'number') return;

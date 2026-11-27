@@ -140,6 +140,8 @@ export const ICONS = {
   eye: icon('<path d="M3 12s3.2-6 9-6 9 6 9 6-3.2 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="3"/>'),
   // the chat page: the typing box's button that carries the draft there, and the mark on what was sent from it
   expand: icon('<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>'),
+  // an arrow up: the typing box's send button, drawn on a round button
+  send: icon('<path d="M12 18.5v-13M6.5 11 12 5.5l5.5 5.5"/>'),
   // a page that opens in the browser
   external: icon('<path d="M14 4h6v6M20 4l-8.5 8.5M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>'),
   // three stacked layers: the list of Worlds
