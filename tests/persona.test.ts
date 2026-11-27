@@ -186,7 +186,7 @@ describe('handoffs after the first', () => {
     let estTokens = over;
     let asked = 0;
     p.attach({
-      sessionInfo: (id: string) => ({ id, running: 0, snapshot: null, estTokens, hardTokens: null }),
+      sessionInfo: (id: string) => ({ id, running: 0, snapshot: null, estTokens, hardTokens: null, openingTokens: 0 }),
       injectInternal: () => {},
       injectExternal: () => {},
       toolsTagged: () => new Set<string>(),
@@ -205,5 +205,29 @@ describe('handoffs after the first', () => {
     p.onBatchEnd();
     p.onBatchEnd();
     expect(asked).toBe(2);
+  });
+
+  it('hands off once more when the first request after a handoff is still over the threshold, then stops', async () => {
+    const { p } = persona();
+    const over = CORMINI_CONTEXT_DEFAULTS.maxTokens * CORMINI_CONTEXT_DEFAULTS.softRatio + 1;
+    let asked = 0;
+    p.attach({
+      sessionInfo: (id: string) => ({ id, running: 0, snapshot: null, estTokens: over, hardTokens: null, openingTokens: over }),
+      injectInternal: () => {},
+      injectExternal: () => {},
+      toolsTagged: () => new Set<string>(),
+      requestContextHandoff: () => { asked++; return true; },
+      log: { warn: () => {}, error: () => {} },
+    } as never);
+
+    await p.onHandoff([], { hardTokens: null });
+    p.onDelivery({ events: [] });
+    p.onBatchEnd();
+    expect(asked).toBe(1);
+
+    await p.onHandoff([], { hardTokens: null });
+    p.onDelivery({ events: [] });
+    for (let k = 0; k < 4; k++) p.onBatchEnd();
+    expect(asked).toBe(1);
   });
 });
