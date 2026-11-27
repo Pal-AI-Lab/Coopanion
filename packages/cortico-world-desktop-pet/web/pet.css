@@ -37,9 +37,10 @@
   --said-bg:#2C3230; --said-ink:#E6EAE8;
   --blush:#FF7F9E; --tear:#6BBDF7; --anger:#FF6369; --heart:#FF6F93; --dust:#5B6472; --warn:#C4A372;
 }
-/* the controls and bubbles drawn over the desktop, a little see-through and lit from above: the controls' face lets the
-   desktop show through while their rings and icons stay solid; a bubble fades as a whole (--bubble-alpha), so its tail,
-   which covers the border where it joins, stays seamless. --sheen is the light from above, --lift their two-layer shadow.
+/* the controls and bubbles drawn over the desktop are a little see-through, and the controls lit from above: a control's
+   face lets the desktop show through while its ring and icon stay solid; a bubble is one flat colour and fades as a whole
+   (--bubble-alpha), so its tail, which covers the border where it joins, stays seamless. --sheen is the controls' light
+   from above, --lift their two-layer shadow.
    --halo, the ring a pointed button gets, is a colour change: it stays at medium motion and comes at once at low. */
 :root{
   --glass:color-mix(in srgb, var(--surface) 90%, transparent);
@@ -163,7 +164,7 @@ body.desk .floor{display:none}
 .bubble{
   position:fixed; left:0; top:0; z-index:3; width:max-content; min-width:calc(58px * var(--bubble-size, 1)); max-width:min(calc(300px * var(--bubble-size, 1)), calc(100vw - 20px));
   padding:calc(10px * var(--bubble-size, 1)) calc(14px * var(--bubble-size, 1)); border-radius:calc(18px * var(--bubble-size, 1));
-  background:linear-gradient(180deg, var(--sheen-top), transparent 45%), var(--surface); color:var(--text);
+  background:var(--surface); color:var(--text);
   border:2.5px solid var(--skin-ink); box-shadow:0 1px 3px var(--shadow), 0 8px 22px var(--shadow);
   font-size:calc(14.5px * var(--bubble-font, 1)); line-height:1.55;
   transform-origin:var(--tail, 50%) calc(100% + calc(10px * var(--bubble-size, 1)));
@@ -184,7 +185,7 @@ body.desk .floor{display:none}
 /* the surface triangle is the outline one moved up by the line's width across its 45° sides (--tail-line × √2, set by
    pet-app.js to the width the border is drawn at), unscaled, so the tail's line matches the border at any --bubble-size */
 .bubble::after{background:var(--surface); clip-path:path('M0.75 1.25 L8.9 9.4 Q11 11.5 13.1 9.4 L21.25 1.25 Z'); translate:0 calc(var(--tail-line, 2.5px) * -1.4142)}
-.bubble.heard{background:linear-gradient(180deg, var(--sheen-top), transparent 45%), var(--said-bg); color:var(--said-ink); border-color:transparent; box-shadow:0 4px 14px var(--shadow); max-width:min(calc(260px * var(--bubble-size, 1)), calc(100vw - 20px))}
+.bubble.heard{background:var(--said-bg); color:var(--said-ink); border-color:transparent; box-shadow:0 4px 14px var(--shadow); max-width:min(calc(260px * var(--bubble-size, 1)), calc(100vw - 20px))}
 .bubble.heard::before, .bubble.heard::after{display:none}
 /* what the person said, above Coo (pet-app.js lines): a settled one closes on a click, lit in the eye color on hover as the
    hover buttons are; older ones step back; a fading one lets the pointer through. Its text shows six rows at most. */
